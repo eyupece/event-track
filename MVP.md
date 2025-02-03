@@ -1,6 +1,6 @@
 # Etkinlik Takip Uygulaması MVP Dokümanı
 
-Versiyon: 0.1.0
+Versiyon: 0.2.0
 Son Güncelleme: [03.02.2024]
 
 ## 1. Proje Özeti
@@ -13,14 +13,23 @@ Kullanıcıların etkinliklerini kategorize edip takip edebileceği, takvim üze
   - Material Design 3 uyumlu tema
   - Gradient arka planlar ve gölgeli kartlar
   - Responsive tasarım
+  - Özel takvim seçici dialog
+  - İlerleme kartı ve istatistikler
 - Takvim entegrasyonu
   - Aylık/haftalık görünüm
   - Türkçe dil desteği
   - Pazartesiden başlayan hafta görünümü
+  - Mini takvim görünümü
 - Clean Architecture yapısı
   - Core katmanı
   - Features katmanı
   - Shared katmanı
+- Ana Ekran Özellikleri
+  - Kişiselleştirilmiş karşılama mesajı
+  - Etkinlik arama çubuğu
+  - Kategori kartları
+  - Etkinlik listesi
+  - Tamamlanan/Bekleyen istatistikleri
 
 ### Geliştirme Aşamasında (🚧)
 - Etkinlik ekleme formu
@@ -115,3 +124,8 @@ Kullanıcıların etkinliklerini kategorize edip takip edebileceği, takvim üze
 - 03.02.2024: Modern UI ve takvim entegrasyonu tamamlandı
 - 03.02.2024: MVP dokümanı güncellendi
 - 03.02.2024: Clean Architecture yapısı oluşturuldu
+- 03.02.2024: Ana ekran tasarımı yenilendi
+  - İlerleme kartı ve istatistikler eklendi
+  - Özel takvim seçici eklendi
+  - Kategori kartları güncellendi
+  - Etkinlik listesi tasarımı iyileştirildi
