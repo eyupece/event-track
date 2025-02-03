@@ -11,3 +11,7 @@ Kod tekrarından kaçınılmalı (DRY prensibi)
 Sayfa yüklenme süreleri takip edilmeli
 Hata mesajları kullanıcı dostu olmalı
 Sürüm etiketleri (git tags) kullanılmalı
+develop
+MVP.md dosyasını sürekli takip edilmeli
+MVP.md dosyasını sürekli güncel tutulmalı
+
