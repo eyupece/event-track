@@ -274,3 +274,7 @@ class FirebaseEventRepository implements IEventRepository {
 - Kod organizasyonu
 - Ölçeklenebilirlik
 - Maintainability 
+=======
+1. Tasarım mockup'ları oluşturma (Figma)
+2. Firebase projesi kurulumu
+3. Temel ekranların kodlanması (Ana ekran → Etkinlik Ekleme → Detay) 
