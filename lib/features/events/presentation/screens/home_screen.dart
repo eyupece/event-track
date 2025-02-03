@@ -4,6 +4,73 @@ import '../../../../core/theme/app_colors.dart';
 import 'package:intl/intl.dart';
 import 'dart:ui';
 
+// Grafik çizimi için özel painter
+class ChartPainter extends CustomPainter {
+  final List<Color> colors;
+
+  ChartPainter({required this.colors});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3;
+
+    for (var i = 0; i < colors.length; i++) {
+      paint.color = colors[i];
+      final points = _generatePoints(size, i);
+      final path = Path();
+
+      path.moveTo(points.first.dx, points.first.dy);
+
+      for (var j = 1; j < points.length; j++) {
+        final p0 = points[j - 1];
+        final p1 = points[j];
+
+        // Bezier eğrisi için kontrol noktaları
+        final controlPoint1 = Offset(
+          p0.dx + (p1.dx - p0.dx) / 2,
+          p0.dy,
+        );
+        final controlPoint2 = Offset(
+          p0.dx + (p1.dx - p0.dx) / 2,
+          p1.dy,
+        );
+
+        path.cubicTo(
+          controlPoint1.dx,
+          controlPoint1.dy,
+          controlPoint2.dx,
+          controlPoint2.dy,
+          p1.dx,
+          p1.dy,
+        );
+      }
+
+      canvas.drawPath(path, paint);
+    }
+  }
+
+  List<Offset> _generatePoints(Size size, int index) {
+    final random = DateTime.now().millisecondsSinceEpoch + index;
+    final points = <Offset>[];
+
+    for (var i = 0; i < 5; i++) {
+      points.add(
+        Offset(
+          i * size.width / 4,
+          20 + (random + i * 1000) % (size.height - 40),
+        ),
+      );
+    }
+
+    return points;
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -18,21 +85,27 @@ class _HomeScreenState extends State<HomeScreen>
   DateTime? _selectedDay;
   late AnimationController _fabAnimationController;
   String? _selectedCategory;
+  final String userName = "Eyüp"; // TODO: Gerçek kullanıcı adını al
 
   final List<Map<String, dynamic>> _categories = [
-    {'name': 'Konser', 'icon': Icons.music_note, 'color': AppColors.concert},
+    {
+      'name': 'Konser',
+      'icon': Icons.music_note,
+      'color': const Color(0xFFFF6B6B),
+      'count': 5,
+    },
     {
       'name': 'Teknoloji',
       'icon': Icons.computer,
-      'color': AppColors.technology
+      'color': const Color(0xFFFFB84D),
+      'count': 1,
     },
-    {'name': 'Sinema', 'icon': Icons.movie, 'color': AppColors.cinema},
     {
-      'name': 'Tiyatro',
-      'icon': Icons.theater_comedy,
-      'color': AppColors.theatre
+      'name': 'Sinema',
+      'icon': Icons.movie,
+      'color': const Color(0xFF4ECDC4),
+      'count': 2,
     },
-    {'name': 'Spor', 'icon': Icons.sports_soccer, 'color': AppColors.sports},
   ];
 
   @override
@@ -54,255 +127,568 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: CustomScrollView(
-        slivers: [
-          _buildAppBar(),
-          SliverToBoxAdapter(
-            child: Column(
-              children: [
-                _buildCategoryFilter(),
-                _buildCalendar(),
-                if (_selectedDay != null) _buildEventsList(),
-                const SizedBox(height: 80),
-              ],
-            ),
-          ),
-        ],
+      backgroundColor: AppColors.primary,
+      body: SafeArea(
+        child: CustomScrollView(
+          slivers: [
+            _buildHeader(),
+            _buildSearchBar(),
+            _buildDateBar(),
+            _buildCategoryGrid(),
+            _buildEventsList(),
+          ],
+        ),
       ),
       floatingActionButton: _buildFAB(),
     );
   }
 
-  Widget _buildAppBar() {
-    return SliverAppBar(
-      expandedHeight: 100.0,
-      floating: true,
-      pinned: true,
-      elevation: 0,
-      backgroundColor: Colors.transparent,
-      flexibleSpace: ClipRect(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: FlexibleSpaceBar(
-            title: const Text(
-              'Etkinliklerim',
-              style: TextStyle(
-                color: AppColors.text,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            background: Container(
-              color: AppColors.background.withOpacity(0.8),
-            ),
-          ),
-        ),
-      ),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.today, color: AppColors.primary),
-          onPressed: () {
-            setState(() {
-              _selectedDay = DateTime.now();
-              _focusedDay = DateTime.now();
-            });
-          },
-        ),
-        Container(
-          margin: const EdgeInsets.only(right: 8),
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: AppColors.primary, width: 2),
-          ),
-          child: IconButton(
-            icon: const Icon(Icons.person_outline, color: AppColors.primary),
-            onPressed: () {
-              // TODO: Profil sayfasına yönlendir
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCategoryFilter() {
-    return Container(
-      height: 60,
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: _categories.length,
-        itemBuilder: (context, index) {
-          final category = _categories[index];
-          final isSelected = category['name'] == _selectedCategory;
-
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: FilterChip(
-              selected: isSelected,
-              showCheckmark: false,
-              avatar: Icon(
-                category['icon'] as IconData,
-                color: isSelected ? Colors.white : category['color'] as Color,
-                size: 20,
-              ),
-              label: Text(
-                category['name'] as String,
-                style: TextStyle(
-                  color: isSelected ? Colors.white : AppColors.text,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              backgroundColor: Colors.white,
-              selectedColor: category['color'] as Color,
-              onSelected: (selected) {
-                setState(() {
-                  _selectedCategory =
-                      selected ? category['name'] as String : null;
-                });
-              },
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildCalendar() {
-    return Container(
-      margin: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.cardBackground,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.shadow,
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
+  Widget _buildHeader() {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  DateFormat('MMMM yyyy', 'tr_TR').format(_focusedDay),
-                  style: const TextStyle(
-                    color: AppColors.text,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Merhaba!',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      userName,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                  child: const CircleAvatar(
+                    radius: 24,
+                    backgroundColor: Colors.white24,
+                    child: Icon(
+                      Icons.person_outline,
+                      color: Colors.white,
+                      size: 30,
+                    ),
                   ),
                 ),
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20.0),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: Colors.white12,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.search,
+                color: Colors.white70,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    hintText: 'Etkinlik ara...',
+                    hintStyle: TextStyle(color: Colors.white60),
+                    border: InputBorder.none,
                   ),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceVariant,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
+                  onChanged: (value) {
+                    // TODO: Arama fonksiyonu
+                  },
+                ),
+              ),
+              IconButton(
+                icon: const Icon(
+                  Icons.tune,
+                  color: Colors.white70,
+                ),
+                onPressed: () {
+                  // TODO: Filtre menüsü
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDateBar() {
+    final now = DateTime.now();
+    final dates =
+        List.generate(5, (index) => now.add(Duration(days: index - 2)));
+
+    return SliverToBoxAdapter(
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    AppColors.primary.withOpacity(0.2),
+                    Colors.white.withOpacity(0.1),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Icon(
-                        _calendarFormat == CalendarFormat.month
-                            ? Icons.calendar_month
-                            : Icons.calendar_view_week,
-                        size: 18,
-                        color: AppColors.primary,
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Bu Ay',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Text(
+                                '${_calculateTotalEvents()} Etkinlik',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.greenAccent.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.arrow_upward,
+                                      color: Colors.greenAccent,
+                                      size: 16,
+                                    ),
+                                    const SizedBox(width: 2),
+                                    Text(
+                                      '%${_calculateGrowthRate()}',
+                                      style: const TextStyle(
+                                        color: Colors.greenAccent,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 4),
-                      Text(
-                        _calendarFormat == CalendarFormat.month
-                            ? 'Aylık'
-                            : 'Haftalık',
-                        style: const TextStyle(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w600,
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: InkWell(
+                          onTap: _showCustomMonthPicker,
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.calendar_today,
+                                color: Colors.white70,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                DateFormat('MMM yyyy', 'tr_TR')
+                                    .format(_focusedDay),
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              const Icon(
+                                Icons.arrow_drop_down,
+                                color: Colors.white70,
+                                size: 20,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildStatItem(
+                        icon: Icons.check_circle_outline,
+                        label: 'Tamamlanan',
+                        value: _calculateCompletedEvents(),
+                        color: Colors.greenAccent,
+                      ),
+                      const SizedBox(width: 48),
+                      _buildStatItem(
+                        icon: Icons.pending_outlined,
+                        label: 'Bekleyen',
+                        value: _calculatePendingEvents(),
+                        color: Colors.orangeAccent,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: dates.map((date) {
+                final isSelected = date.day == now.day;
+                return _buildDateItem(date, isSelected);
+              }).toList(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatItem({
+    required IconData icon,
+    required String label,
+    required int value,
+    required Color color,
+  }) {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              icon,
+              color: color,
+              size: 20,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value.toString(),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white60,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  int _calculateTotalEvents() {
+    // Örnek veri
+    return 12;
+  }
+
+  int _calculateGrowthRate() {
+    // Örnek veri
+    return 15;
+  }
+
+  int _calculateCompletedEvents() {
+    // Örnek veri
+    return 8;
+  }
+
+  int _calculatePendingEvents() {
+    // Örnek veri
+    return 4;
+  }
+
+  int _calculateThisWeekEvents() {
+    // Örnek veri - Bu hafta içindeki etkinlik sayısı
+    return 3;
+  }
+
+  Widget _buildDateItem(DateTime date, bool isSelected) {
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _selectedDay = date;
+          _focusedDay = date;
+        });
+      },
+      child: Container(
+        width: 50,
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: [
+            Text(
+              DateFormat('E', 'tr_TR').format(date).substring(0, 3),
+              style: TextStyle(
+                color: isSelected ? AppColors.primary : Colors.white70,
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              date.day.toString(),
+              style: TextStyle(
+                color: isSelected ? AppColors.primary : Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            if (isSelected)
+              Container(
+                margin: const EdgeInsets.only(top: 4),
+                width: 4,
+                height: 4,
+                decoration: const BoxDecoration(
+                  color: AppColors.primary,
+                  shape: BoxShape.circle,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryGrid() {
+    return SliverToBoxAdapter(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.all(20.0),
+            child: Text(
+              'Kategoriler',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          SizedBox(
+            height: 140,
+            child: ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              scrollDirection: Axis.horizontal,
+              itemCount: _categories.length + 1,
+              itemBuilder: (context, index) {
+                if (index == _categories.length) {
+                  return _buildAddCategoryCard();
+                }
+                return _buildCategoryCard(_categories[index]);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategoryCard(Map<String, dynamic> category) {
+    return Container(
+      width: 120,
+      margin: const EdgeInsets.all(4),
+      child: Card(
+        color: category['color'],
+        elevation: 4,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: InkWell(
+          onTap: () {
+            setState(() {
+              _selectedCategory = category['name'];
+            });
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Icon(
+                  category['icon'],
+                  color: Colors.white,
+                  size: 32,
+                ),
+                const Spacer(),
+                Text(
+                  category['name'],
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${category['count']} Etkinlik',
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
                   ),
                 ),
               ],
             ),
           ),
-          TableCalendar(
-            firstDay: DateTime.utc(2024, 1, 1),
-            lastDay: DateTime.utc(2025, 12, 31),
-            focusedDay: _focusedDay,
-            calendarFormat: _calendarFormat,
-            startingDayOfWeek: StartingDayOfWeek.monday,
-            locale: 'tr_TR',
-            selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-            onDaySelected: (selectedDay, focusedDay) {
-              setState(() {
-                _selectedDay = selectedDay;
-                _focusedDay = focusedDay;
-              });
-            },
-            onFormatChanged: (format) {
-              setState(() {
-                _calendarFormat = format;
-              });
-            },
-            onPageChanged: (focusedDay) {
-              _focusedDay = focusedDay;
-            },
-            headerStyle: const HeaderStyle(
-              formatButtonVisible: false,
-              titleCentered: true,
-              titleTextStyle: TextStyle(fontSize: 0),
-              leftChevronIcon: Icon(
-                Icons.chevron_left,
-                color: AppColors.primary,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAddCategoryCard() {
+    return Container(
+      width: 120,
+      margin: const EdgeInsets.all(4),
+      child: Card(
+        color: Colors.white10,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Colors.white24),
+        ),
+        child: InkWell(
+          onTap: () {
+            // TODO: Yeni kategori ekleme
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: const Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.add_circle_outline,
+                color: Colors.white70,
+                size: 32,
               ),
-              rightChevronIcon: Icon(
-                Icons.chevron_right,
-                color: AppColors.primary,
+              SizedBox(height: 8),
+              Text(
+                'Yeni\nKategori',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 14,
+                ),
               ),
-            ),
-            calendarStyle: CalendarStyle(
-              todayDecoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.3),
-                shape: BoxShape.circle,
-              ),
-              selectedDecoration: const BoxDecoration(
-                color: AppColors.primary,
-                shape: BoxShape.circle,
-              ),
-              weekendTextStyle: TextStyle(
-                color: AppColors.error.withOpacity(0.7),
-              ),
-              outsideDaysVisible: false,
-              cellMargin: const EdgeInsets.all(4),
-            ),
-            daysOfWeekStyle: const DaysOfWeekStyle(
-              weekdayStyle: TextStyle(
-                color: AppColors.textSecondary,
-                fontWeight: FontWeight.bold,
-              ),
-              weekendStyle: TextStyle(
-                color: AppColors.error,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 
   Widget _buildEventsList() {
-    // Örnek etkinlikler
+    return SliverToBoxAdapter(
+      child: Container(
+        margin: const EdgeInsets.only(top: 20),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(32),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Yaklaşan Etkinlikler',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      // TODO: Tüm etkinlikleri göster
+                    },
+                    child: const Text('Tümünü Gör'),
+                  ),
+                ],
+              ),
+            ),
+            _buildEventItems(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEventItems() {
     final events = [
       {
         'title': 'Flutter Meetup',
@@ -310,6 +696,7 @@ class _HomeScreenState extends State<HomeScreen>
         'location': 'Tech Hub',
         'category': 'Teknoloji',
         'participants': 12,
+        'completed': 0,
       },
       {
         'title': 'Rock Konseri',
@@ -317,140 +704,255 @@ class _HomeScreenState extends State<HomeScreen>
         'location': 'Konser Salonu',
         'category': 'Konser',
         'participants': 250,
+        'completed': 5,
       },
     ];
 
-    return Column(
-      children: events.map((event) => _buildEventCard(event)).toList(),
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: events.length,
+      itemBuilder: (context, index) {
+        final event = events[index];
+        final category = _categories.firstWhere(
+          (c) => c['name'] == event['category'],
+          orElse: () => _categories[0],
+        );
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: ListTile(
+            contentPadding: const EdgeInsets.all(16),
+            leading: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: (category['color'] as Color).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                category['icon'] as IconData,
+                color: category['color'] as Color,
+                size: 28,
+              ),
+            ),
+            title: Text(
+              event['title'] as String,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.access_time,
+                      size: 16,
+                      color: Colors.black54,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      event['time'] as String,
+                      style: const TextStyle(color: Colors.black54),
+                    ),
+                    const SizedBox(width: 16),
+                    const Icon(
+                      Icons.location_on,
+                      size: 16,
+                      color: Colors.black54,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      event['location'] as String,
+                      style: const TextStyle(color: Colors.black54),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            trailing: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 6,
+              ),
+              decoration: BoxDecoration(
+                color: (category['color'] as Color).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                '${event['completed']} / ${event['participants']}',
+                style: TextStyle(
+                  color: category['color'] as Color,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildEventCard(Map<String, dynamic> event) {
-    final category = _categories.firstWhere(
-      (c) => c['name'] == event['category'],
-      orElse: () => _categories[0],
-    );
-
-    return Dismissible(
-      key: Key(event['title']),
-      background: Container(
-        color: AppColors.error,
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        child: const Icon(Icons.delete, color: Colors.white),
-      ),
-      direction: DismissDirection.endToStart,
-      onDismissed: (direction) {
-        // TODO: Etkinliği sil
+  Widget _buildFAB() {
+    return FloatingActionButton(
+      onPressed: () {
+        _fabAnimationController.forward(from: 0);
+        // TODO: Etkinlik ekleme sayfasına yönlendir
       },
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: AppColors.cardBackground,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.shadow,
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-          border: Border.all(
-            color: (category['color'] as Color).withOpacity(0.3),
-            width: 1,
+      backgroundColor: Colors.white,
+      child: const Icon(
+        Icons.add,
+        color: AppColors.primary,
+      ),
+    );
+  }
+
+  void _showCustomMonthPicker() {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: AppColors.primary,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
           ),
-        ),
-        child: ListTile(
-          contentPadding: const EdgeInsets.all(16),
-          leading: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: (category['color'] as Color).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              category['icon'] as IconData,
-              color: category['color'] as Color,
-            ),
-          ),
-          title: Text(
-            event['title'],
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-          ),
-          subtitle: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              const SizedBox(height: 4),
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Icon(
-                    Icons.access_time,
-                    size: 16,
-                    color: AppColors.textLight,
+                  IconButton(
+                    icon: const Icon(Icons.chevron_left, color: Colors.white),
+                    onPressed: () {
+                      setState(() {
+                        _focusedDay = DateTime(
+                          _focusedDay.year,
+                          _focusedDay.month - 1,
+                        );
+                      });
+                    },
                   ),
-                  const SizedBox(width: 4),
                   Text(
-                    event['time'],
+                    DateFormat('MMMM yyyy', 'tr_TR').format(_focusedDay),
                     style: const TextStyle(
-                      color: AppColors.textLight,
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  const Icon(
-                    Icons.location_on,
-                    size: 16,
-                    color: AppColors.textLight,
+                  IconButton(
+                    icon: const Icon(Icons.chevron_right, color: Colors.white),
+                    onPressed: () {
+                      setState(() {
+                        _focusedDay = DateTime(
+                          _focusedDay.year,
+                          _focusedDay.month + 1,
+                        );
+                      });
+                    },
                   ),
-                  const SizedBox(width: 4),
-                  Text(
-                    event['location'],
-                    style: const TextStyle(
-                      color: AppColors.textLight,
+                ],
+              ),
+              const SizedBox(height: 20),
+              TableCalendar(
+                firstDay: DateTime(2024),
+                lastDay: DateTime(2025, 12),
+                focusedDay: _focusedDay,
+                currentDay: DateTime.now(),
+                calendarFormat: CalendarFormat.month,
+                startingDayOfWeek: StartingDayOfWeek.monday,
+                headerVisible: false,
+                daysOfWeekHeight: 40,
+                rowHeight: 40,
+                selectedDayPredicate: (day) => isSameDay(day, _selectedDay),
+                onDaySelected: (selectedDay, focusedDay) {
+                  setState(() {
+                    _selectedDay = selectedDay;
+                    _focusedDay = focusedDay;
+                  });
+                  Navigator.pop(context);
+                },
+                calendarStyle: const CalendarStyle(
+                  defaultTextStyle: TextStyle(color: Colors.white),
+                  weekendTextStyle: TextStyle(color: Colors.white70),
+                  selectedTextStyle: TextStyle(color: AppColors.primary),
+                  todayTextStyle: TextStyle(color: Colors.white),
+                  outsideTextStyle: TextStyle(color: Colors.white38),
+                  selectedDecoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  todayDecoration: BoxDecoration(
+                    color: Colors.white24,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                daysOfWeekStyle: const DaysOfWeekStyle(
+                  weekdayStyle: TextStyle(
+                    color: Colors.white70,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  weekendStyle: TextStyle(
+                    color: Colors.white70,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text(
+                      'İptal',
+                      style: TextStyle(color: Colors.white70),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        _focusedDay = DateTime.now();
+                        _selectedDay = DateTime.now();
+                      });
+                      Navigator.pop(context);
+                    },
+                    child: const Text(
+                      'Bugün',
+                      style: TextStyle(color: Colors.white),
                     ),
                   ),
                 ],
               ),
             ],
           ),
-          trailing: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(
-                Icons.people,
-                size: 16,
-                color: AppColors.textLight,
-              ),
-              Text(
-                event['participants'].toString(),
-                style: const TextStyle(
-                  color: AppColors.textLight,
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFAB() {
-    return FloatingActionButton.extended(
-      onPressed: () {
-        _fabAnimationController.forward(from: 0);
-        // TODO: Etkinlik ekleme sayfasına yönlendir
-      },
-      backgroundColor: AppColors.primary,
-      elevation: 4,
-      icon: const Icon(Icons.add, color: Colors.white),
-      label: const Text(
-        'Etkinlik Ekle',
-        style: TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
         ),
       ),
     );
