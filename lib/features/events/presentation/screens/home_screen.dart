@@ -3,6 +3,10 @@ import 'package:table_calendar/table_calendar.dart';
 import '../../../../core/theme/app_colors.dart';
 import 'package:intl/intl.dart';
 import 'dart:ui';
+import './add_event_screen.dart';
+import '../../domain/models/event_model.dart';
+import '../../data/repositories/event_repository.dart';
+import '../widgets/event_list_item.dart';
 
 // Grafik çizimi için özel painter
 class ChartPainter extends CustomPainter {
@@ -80,7 +84,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
-  CalendarFormat _calendarFormat = CalendarFormat.week;
+  final CalendarFormat _calendarFormat = CalendarFormat.week;
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
   late AnimationController _fabAnimationController;
@@ -108,6 +112,9 @@ class _HomeScreenState extends State<HomeScreen>
     },
   ];
 
+  final EventRepository _eventRepository = EventRepository();
+  List<Event> _events = [];
+
   @override
   void initState() {
     super.initState();
@@ -116,6 +123,14 @@ class _HomeScreenState extends State<HomeScreen>
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
+    _loadEvents();
+  }
+
+  Future<void> _loadEvents() async {
+    final events = await _eventRepository.getEvents();
+    setState(() {
+      _events = events;
+    });
   }
 
   @override
@@ -647,177 +662,96 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Widget _buildEventsList() {
-    return SliverToBoxAdapter(
-      child: Container(
-        margin: const EdgeInsets.only(top: 20),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(32),
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Yaklaşan Etkinlikler',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+    return SliverList(
+      delegate: SliverChildBuilderDelegate(
+        (context, index) {
+          if (_events.isEmpty) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32.0),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.event_busy,
+                      size: 64,
+                      color: Colors.white.withOpacity(0.5),
                     ),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      // TODO: Tüm etkinlikleri göster
-                    },
-                    child: const Text('Tümünü Gör'),
-                  ),
-                ],
+                    const SizedBox(height: 16),
+                    Text(
+                      'Henüz etkinlik eklenmemiş',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.5),
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            _buildEventItems(),
-          ],
-        ),
+            );
+          }
+
+          final event = _events[index];
+          return EventListItem(
+            event: event,
+            onTap: () {
+              // TODO: Etkinlik detay sayfasına git
+            },
+            onDelete: () async {
+              await _eventRepository.deleteEvent(event.id);
+              _loadEvents();
+            },
+          );
+        },
+        childCount: _events.isEmpty ? 1 : _events.length,
       ),
     );
   }
 
-  Widget _buildEventItems() {
-    final events = [
-      {
-        'title': 'Flutter Meetup',
-        'time': '14:00',
-        'location': 'Tech Hub',
-        'category': 'Teknoloji',
-        'participants': 12,
-        'completed': 0,
-      },
-      {
-        'title': 'Rock Konseri',
-        'time': '20:00',
-        'location': 'Konser Salonu',
-        'category': 'Konser',
-        'participants': 250,
-        'completed': 5,
-      },
-    ];
-
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: events.length,
-      itemBuilder: (context, index) {
-        final event = events[index];
-        final category = _categories.firstWhere(
-          (c) => c['name'] == event['category'],
-          orElse: () => _categories[0],
-        );
-
-        return Container(
-          margin: const EdgeInsets.only(bottom: 16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: ListTile(
-            contentPadding: const EdgeInsets.all(16),
-            leading: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: (category['color'] as Color).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                category['icon'] as IconData,
-                color: category['color'] as Color,
-                size: 28,
-              ),
-            ),
-            title: Text(
-              event['title'] as String,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.access_time,
-                      size: 16,
-                      color: Colors.black54,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      event['time'] as String,
-                      style: const TextStyle(color: Colors.black54),
-                    ),
-                    const SizedBox(width: 16),
-                    const Icon(
-                      Icons.location_on,
-                      size: 16,
-                      color: Colors.black54,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      event['location'] as String,
-                      style: const TextStyle(color: Colors.black54),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            trailing: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 6,
-              ),
-              decoration: BoxDecoration(
-                color: (category['color'] as Color).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                '${event['completed']} / ${event['participants']}',
-                style: TextStyle(
-                  color: category['color'] as Color,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   Widget _buildFAB() {
-    return FloatingActionButton(
-      onPressed: () {
-        _fabAnimationController.forward(from: 0);
-        // TODO: Etkinlik ekleme sayfasına yönlendir
-      },
-      backgroundColor: Colors.white,
-      child: const Icon(
-        Icons.add,
-        color: AppColors.primary,
+    return AnimatedRotation(
+      duration: const Duration(milliseconds: 300),
+      turns: _fabAnimationController.value,
+      child: FloatingActionButton.extended(
+        onPressed: () async {
+          _fabAnimationController.forward(from: 0);
+          final result = await Navigator.push<Event>(
+            context,
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) =>
+                  const AddEventScreen(),
+              transitionsBuilder:
+                  (context, animation, secondaryAnimation, child) {
+                const begin = Offset(0.0, 1.0);
+                const end = Offset.zero;
+                const curve = Curves.easeInOutCubic;
+                var tween = Tween(begin: begin, end: end)
+                    .chain(CurveTween(curve: curve));
+                var offsetAnimation = animation.drive(tween);
+                return SlideTransition(position: offsetAnimation, child: child);
+              },
+              transitionDuration: const Duration(milliseconds: 500),
+            ),
+          );
+
+          if (result != null) {
+            await _eventRepository.addEvent(result);
+            _loadEvents();
+          }
+        },
+        backgroundColor: Colors.white,
+        icon: Icon(
+          Icons.add_rounded,
+          color: AppColors.primary,
+          size: 32,
+        ),
+        label: Text(
+          'Etkinlik Ekle',
+          style: TextStyle(
+            color: AppColors.primary,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ),
     );
   }

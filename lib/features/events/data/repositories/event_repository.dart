@@ -1,4 +1,5 @@
-import '../../domain/models/event.dart';
+import 'package:flutter/material.dart';
+import '../../domain/models/event_model.dart';
 
 abstract class IEventRepository {
   Future<List<Event>> getEvents();
@@ -10,44 +11,76 @@ abstract class IEventRepository {
   Future<List<Event>> getEventsByDateRange(DateTime start, DateTime end);
 }
 
-// Local storage implementation (Hive)
-class LocalEventRepository implements IEventRepository {
+class EventRepository implements IEventRepository {
+  final List<Event> _events = [];
+
   @override
   Future<List<Event>> getEvents() async {
-    // TODO: Implement local storage
-    return [];
+    return List.from(_events);
   }
 
   @override
   Future<Event?> getEventById(String id) async {
-    // TODO: Implement local storage
-    return null;
+    try {
+      return _events.firstWhere((event) => event.id == id);
+    } catch (e) {
+      return null;
+    }
   }
 
   @override
   Future<void> addEvent(Event event) async {
-    // TODO: Implement local storage
+    _events.add(event);
+    _sortEvents();
   }
 
   @override
   Future<void> updateEvent(Event event) async {
-    // TODO: Implement local storage
+    final index = _events.indexWhere((e) => e.id == event.id);
+    if (index != -1) {
+      _events[index] = event;
+      _sortEvents();
+    }
   }
 
   @override
   Future<void> deleteEvent(String id) async {
-    // TODO: Implement local storage
+    _events.removeWhere((event) => event.id == id);
   }
 
   @override
   Future<List<Event>> getEventsByCategory(String category) async {
-    // TODO: Implement local storage
-    return [];
+    return _events.where((event) => event.category == category).toList();
   }
 
   @override
   Future<List<Event>> getEventsByDateRange(DateTime start, DateTime end) async {
-    // TODO: Implement local storage
-    return [];
+    return _events.where((event) {
+      return event.date.isAfter(start.subtract(const Duration(days: 1))) &&
+          event.date.isBefore(end.add(const Duration(days: 1)));
+    }).toList();
+  }
+
+  void _sortEvents() {
+    _events.sort((a, b) {
+      final dateComparison = a.date.compareTo(b.date);
+      if (dateComparison != 0) return dateComparison;
+
+      return TimeOfDay(hour: a.time.hour, minute: a.time.minute)
+          .hour
+          .compareTo(TimeOfDay(hour: b.time.hour, minute: b.time.minute).hour);
+    });
+  }
+
+  int getEventCountByCategory(String category) {
+    return _events.where((event) => event.category == category).length;
+  }
+
+  Map<String, int> getCategoryStatistics() {
+    final stats = <String, int>{};
+    for (final event in _events) {
+      stats[event.category] = (stats[event.category] ?? 0) + 1;
+    }
+    return stats;
   }
 }
