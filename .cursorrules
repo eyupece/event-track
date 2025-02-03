@@ -1,0 +1,15 @@
+Github'a projeyi bağlayıp yapılan değişiklikleri gönder. Bunu yaparken yapılan değişiklikleri açıklayıp yapılan değişiklikleri yapmadan önce bana sor.
+Türkçe karakter kullanımında dikkatli olunmalı
+Her commit mesajı açıklayıcı ve anlaşılır olmalı, atomic commit kuralına uygun olmalı
+Yeni özellikler için feature/ önekli branch'ler kullanılmalı
+Main branch'e direkt push yapılmamalı
+Her yeni özellik için teknik dokümantasyon yazılmalı
+README.md dosyası güncel tutulmalı
+Hassas bilgiler (API anahtarları, şifreler) asla kod içinde tutulmamalı
+Değişken ve fonksiyon isimleri açıklayıcı olmalı
+Kod tekrarından kaçınılmalı (DRY prensibi)
+Sayfa yüklenme süreleri takip edilmeli
+Hata mesajları kullanıcı dostu olmalı
+Sürüm etiketleri (git tags) kullanılmalı
+MVP.md dosyasını sürekli takip edilmeli
+MVP.md dosyasını sürekli güncel tutulmalı
