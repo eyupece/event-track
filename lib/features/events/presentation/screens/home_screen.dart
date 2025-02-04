@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../../../../core/theme/app_colors.dart';
-import 'package:intl/intl.dart';
-import 'dart:ui';
-import './add_event_screen.dart';
+import './event_form_screen.dart';
 import '../../domain/models/event_model.dart';
 import '../../data/repositories/event_repository.dart';
 import '../widgets/event_list_item.dart';
 import '../widgets/mini_calendar_widget.dart';
+import './event_detail_screen.dart';
 
 // Grafik çizimi için özel painter
 class ChartPainter extends CustomPainter {
@@ -863,11 +862,35 @@ class _HomeScreenState extends State<HomeScreen>
           return EventListItem(
             event: event,
             searchQuery: _searchQuery,
-            onTap: () {
-              // TODO: Etkinlik detay sayfasına git
+            onTap: () async {
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => EventDetailScreen(event: event),
+                ),
+              );
+              if (result != null) {
+                await _eventRepository.updateEvent(result);
+                _loadEvents(); // Etkinlik güncellendiğinde listeyi yenile
+              }
             },
             onDelete: () async {
               await _eventRepository.deleteEvent(event.id);
+              _loadEvents();
+            },
+            onCompletedChanged: (value) async {
+              final updatedEvent = Event(
+                id: event.id,
+                title: event.title,
+                description: event.description,
+                date: event.date,
+                time: event.time,
+                category: event.category,
+                location: event.location,
+                notes: event.notes,
+                isCompleted: value,
+              );
+              await _eventRepository.updateEvent(updatedEvent);
               _loadEvents();
             },
           );
@@ -931,7 +954,7 @@ class _HomeScreenState extends State<HomeScreen>
             context,
             PageRouteBuilder(
               pageBuilder: (context, animation, secondaryAnimation) =>
-                  const AddEventScreen(),
+                  const EventFormScreen(),
               transitionsBuilder:
                   (context, animation, secondaryAnimation, child) {
                 const begin = Offset(0.0, 1.0);
@@ -952,12 +975,12 @@ class _HomeScreenState extends State<HomeScreen>
           }
         },
         backgroundColor: Colors.white,
-        icon: Icon(
+        icon: const Icon(
           Icons.add_rounded,
           color: AppColors.primary,
           size: 32,
         ),
-        label: Text(
+        label: const Text(
           'Etkinlik Ekle',
           style: TextStyle(
             color: AppColors.primary,

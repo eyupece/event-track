@@ -39,7 +39,6 @@ class EventRepository implements IEventRepository {
     final index = _events.indexWhere((e) => e.id == event.id);
     if (index != -1) {
       _events[index] = event;
-      _sortEvents();
     }
   }
 
