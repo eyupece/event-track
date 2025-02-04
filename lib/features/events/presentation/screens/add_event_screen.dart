@@ -21,6 +21,9 @@ class _AddEventScreenState extends State<AddEventScreen> {
   DateTime _selectedDate = DateTime.now();
   TimeOfDay _selectedTime = TimeOfDay.now();
   String? _selectedCategory;
+  String? _titleError;
+  String? _categoryError;
+  String? _dateError;
 
   final List<Map<String, dynamic>> _categories = [
     {
@@ -118,8 +121,8 @@ class _AddEventScreenState extends State<AddEventScreen> {
               ),
               const SizedBox(height: 20),
               TableCalendar(
-                firstDay: DateTime.now(),
-                lastDay: DateTime.now().add(const Duration(days: 365)),
+                firstDay: DateTime(2023),
+                lastDay: DateTime.now().add(const Duration(days: 365 * 2)),
                 focusedDay: _selectedDate,
                 currentDay: DateTime.now(),
                 selectedDayPredicate: (day) => isSameDay(day, _selectedDate),
@@ -132,6 +135,33 @@ class _AddEventScreenState extends State<AddEventScreen> {
                   setState(() {
                     _selectedDate = selectedDay;
                   });
+
+                  // Geçmiş tarih kontrolü
+                  final now = DateTime.now();
+                  final selectedDateTime = DateTime(
+                    selectedDay.year,
+                    selectedDay.month,
+                    selectedDay.day,
+                    _selectedTime.hour,
+                    _selectedTime.minute,
+                  );
+
+                  if (selectedDateTime.isBefore(now)) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content:
+                            const Text('Dikkat: Geçmiş bir tarih seçtiniz'),
+                        backgroundColor: Colors.orange,
+                        behavior: SnackBarBehavior.floating,
+                        margin: const EdgeInsets.all(16),
+                        duration: const Duration(seconds: 2),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    );
+                  }
+
                   Navigator.pop(context);
                 },
                 calendarStyle: const CalendarStyle(
@@ -345,33 +375,60 @@ class _AddEventScreenState extends State<AddEventScreen> {
     );
   }
 
-  void _submitForm() {
-    if (_formKey.currentState!.validate()) {
-      if (_selectedCategory == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Lütfen bir kategori seçin'),
-            backgroundColor: Colors.redAccent,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        return;
-      }
+  bool _validateForm() {
+    bool isValid = true;
 
-      final event = Event(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        title: _titleController.text,
-        description: _descriptionController.text,
-        date: _selectedDate,
-        time: _selectedTime,
-        category: _selectedCategory!,
-        location:
-            _locationController.text.isEmpty ? null : _locationController.text,
-        notes: _notesController.text.isEmpty ? null : _notesController.text,
-      );
-
-      Navigator.pop(context, event);
+    // Başlık kontrolü
+    if (_titleController.text.trim().isEmpty) {
+      setState(() => _titleError = 'Başlık alanı boş bırakılamaz');
+      isValid = false;
+    } else if (_titleController.text.trim().length < 3) {
+      setState(() => _titleError = 'Başlık en az 3 karakter olmalıdır');
+      isValid = false;
+    } else {
+      setState(() => _titleError = null);
     }
+
+    // Kategori kontrolü
+    if (_selectedCategory == null) {
+      setState(() => _categoryError = 'Lütfen bir kategori seçin');
+      isValid = false;
+    } else {
+      setState(() => _categoryError = null);
+    }
+
+    return isValid;
+  }
+
+  void _submitForm() {
+    if (!_validateForm()) {
+      return;
+    }
+
+    final event = Event(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      title: _titleController.text.trim(),
+      description: _descriptionController.text.trim(),
+      date: _selectedDate,
+      time: _selectedTime,
+      category: _selectedCategory!,
+      location: _locationController.text.trim(),
+      notes: _notesController.text.trim(),
+    );
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Etkinlik başarıyla oluşturuldu'),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
+    );
+
+    Navigator.pop(context, event);
   }
 
   @override
@@ -391,6 +448,18 @@ class _AddEventScreenState extends State<AddEventScreen> {
             icon: const Icon(Icons.arrow_back_ios_new_rounded),
             onPressed: () => Navigator.pop(context),
           ),
+          actions: [
+            TextButton(
+              onPressed: _submitForm,
+              child: const Text(
+                'Kaydet',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
         ),
         body: Form(
           key: _formKey,
@@ -406,12 +475,8 @@ class _AddEventScreenState extends State<AddEventScreen> {
                       _buildTextField(
                         controller: _titleController,
                         label: 'Başlık',
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Lütfen bir başlık girin';
-                          }
-                          return null;
-                        },
+                        prefixIcon: Icons.title,
+                        errorText: _titleError,
                       ),
                       const SizedBox(height: 16),
                       _buildTextField(
@@ -448,21 +513,6 @@ class _AddEventScreenState extends State<AddEventScreen> {
                 maxLines: 3,
               ),
               const SizedBox(height: 32),
-              ElevatedButton(
-                onPressed: _submitForm,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: AppColors.primary,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text(
-                  'Etkinlik Ekle',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ),
             ],
           ),
         ),
@@ -476,6 +526,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
     int maxLines = 1,
     IconData? prefixIcon,
     String? Function(String?)? validator,
+    String? errorText,
   }) {
     return TextFormField(
       controller: controller,
@@ -492,7 +543,10 @@ class _AddEventScreenState extends State<AddEventScreen> {
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.white24),
+          borderSide: BorderSide(
+            color: errorText != null ? Colors.red : Colors.white24,
+            width: errorText != null ? 2 : 1,
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -500,10 +554,16 @@ class _AddEventScreenState extends State<AddEventScreen> {
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.redAccent),
+          borderSide: const BorderSide(color: Colors.red, width: 2),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.red, width: 2),
         ),
         filled: true,
         fillColor: Colors.white12,
+        errorText: errorText,
+        errorStyle: const TextStyle(color: Colors.red),
       ),
       validator: validator,
     );
@@ -564,39 +624,56 @@ class _AddEventScreenState extends State<AddEventScreen> {
   }
 
   Widget _buildCategoryDropdown() {
-    return InkWell(
-      onTap: _showCategoryPicker,
-      child: InputDecorator(
-        decoration: InputDecoration(
-          labelText: 'Kategori',
-          labelStyle: const TextStyle(color: Colors.white70),
-          prefixIcon: _selectedCategory != null
-              ? Icon(
-                  _categories.firstWhere(
-                          (c) => c['name'] == _selectedCategory)['icon']
-                      as IconData,
-                  color: _categories.firstWhere(
-                      (c) => c['name'] == _selectedCategory)['color'] as Color,
-                )
-              : const Icon(Icons.category_outlined, color: Colors.white70),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Colors.white24),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InkWell(
+          onTap: _showCategoryPicker,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white12,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: _categoryError != null ? Colors.red : Colors.white24,
+                width: _categoryError != null ? 2 : 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                _selectedCategory != null
+                    ? Icon(
+                        _categories.firstWhere(
+                                (c) => c['name'] == _selectedCategory)['icon']
+                            as IconData,
+                        color: _categories.firstWhere(
+                                (c) => c['name'] == _selectedCategory)['color']
+                            as Color,
+                      )
+                    : const Icon(Icons.category_outlined,
+                        color: Colors.white70),
+                const SizedBox(width: 12),
+                Text(
+                  _selectedCategory ?? 'Kategori Seçin',
+                  style: TextStyle(
+                    color: _selectedCategory != null
+                        ? Colors.white
+                        : Colors.white70,
+                  ),
+                ),
+              ],
+            ),
           ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Colors.white24),
-          ),
-          filled: true,
-          fillColor: Colors.white12,
         ),
-        child: Text(
-          _selectedCategory ?? 'Kategori Seçin',
-          style: TextStyle(
-            color: _selectedCategory != null ? Colors.white : Colors.white70,
+        if (_categoryError != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8, left: 12),
+            child: Text(
+              _categoryError!,
+              style: const TextStyle(color: Colors.red, fontSize: 12),
+            ),
           ),
-        ),
-      ),
+      ],
     );
   }
 
