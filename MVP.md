@@ -20,6 +20,12 @@ Kullanıcıların etkinliklerini kategorize edip takip edebileceği, takvim üze
     - Durum filtreleri (Tamamlanan/Bekleyen)
     - Tarih filtreleri (Bugün/Hafta/Ay)
     - Görsel iyileştirmeler ve kullanıcı deneyimi
+- Form Validasyonları
+  - Karakter limitleri (Başlık: 50, Açıklama: 500, Konum: 50, Notlar: 500)
+  - Anlık form validasyonu
+  - Karakter sayacı gösterimi
+  - Loading state
+  - Türkçe hata mesajları
 - Takvim entegrasyonu
   - Aylık/haftalık görünüm
   - Türkçe dil desteği
@@ -139,3 +145,7 @@ Kullanıcıların etkinliklerini kategorize edip takip edebileceği, takvim üze
   - Özel takvim seçici eklendi
   - Kategori kartları güncellendi
   - Etkinlik listesi tasarımı iyileştirildi
+- 04.02.2024: Form validasyonları ve karakter limitleri eklendi
+  - Tüm form alanları için karakter limitleri tanımlandı
+  - Anlık validasyon ve karakter sayacı eklendi
+  - Loading state ve kullanıcı geri bildirimleri iyileştirildi
