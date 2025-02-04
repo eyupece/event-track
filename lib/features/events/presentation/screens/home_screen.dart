@@ -289,26 +289,29 @@ class _HomeScreenState extends State<HomeScreen>
     final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
     final startOfMonth = DateTime(now.year, now.month, 1);
 
+    // Filtrelenmiş etkinlikler
+    final filteredEvents = _filteredEvents;
+
     // Tamamlanma durumuna göre hesaplama
-    final completedEvents = _events.where((e) => e.isCompleted).length;
-    final pendingEvents = _events.where((e) => !e.isCompleted).length;
+    final completedEvents = filteredEvents.where((e) => e.isCompleted).length;
+    final pendingEvents = filteredEvents.where((e) => !e.isCompleted).length;
 
     // Günlük etkinlikler (bugün)
-    final dailyEvents = _events
+    final dailyEvents = filteredEvents
         .where((e) =>
             e.date.isAfter(startOfDay.subtract(const Duration(days: 1))) &&
             e.date.isBefore(startOfDay.add(const Duration(days: 1))))
         .length;
 
     // Haftalık etkinlikler (bu hafta)
-    final weeklyEvents = _events
+    final weeklyEvents = filteredEvents
         .where((e) =>
             e.date.isAfter(startOfWeek.subtract(const Duration(days: 1))) &&
             e.date.isBefore(startOfWeek.add(const Duration(days: 7))))
         .length;
 
     // Aylık etkinlikler (bu ay)
-    final monthlyEvents = _events
+    final monthlyEvents = filteredEvents
         .where((e) => e.date.month == now.month && e.date.year == now.year)
         .length;
 
@@ -323,8 +326,19 @@ class _HomeScreenState extends State<HomeScreen>
         dailyEvents: dailyEvents,
         weeklyEvents: weeklyEvents,
         monthlyEvents: monthlyEvents,
+        selectedCategory: _selectedCategory,
       ),
     );
+  }
+
+  // Filtrelenmiş etkinlikleri döndüren getter
+  List<Event> get _filteredEvents {
+    if (_selectedCategory == null) {
+      return _events;
+    }
+    return _events
+        .where((event) => event.category == _selectedCategory)
+        .toList();
   }
 
   Widget _buildCategoryGrid() {
@@ -332,15 +346,40 @@ class _HomeScreenState extends State<HomeScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.all(20.0),
-            child: Text(
-              'Kategoriler',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+          Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Kategoriler',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                if (_selectedCategory != null)
+                  TextButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _selectedCategory = null;
+                      });
+                    },
+                    icon: const Icon(
+                      Icons.filter_alt_off,
+                      color: Colors.white70,
+                      size: 20,
+                    ),
+                    label: const Text(
+                      'Filtreyi Kaldır',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
           SizedBox(
@@ -363,19 +402,21 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Widget _buildCategoryCard(Map<String, dynamic> category) {
+    final isSelected = category['name'] == _selectedCategory;
+
     return Container(
       width: 120,
       margin: const EdgeInsets.all(4),
       child: Card(
-        color: category['color'],
-        elevation: 4,
+        color: isSelected ? Colors.white : category['color'],
+        elevation: isSelected ? 8 : 4,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),
         child: InkWell(
           onTap: () {
             setState(() {
-              _selectedCategory = category['name'];
+              _selectedCategory = isSelected ? null : category['name'];
             });
           },
           borderRadius: BorderRadius.circular(16),
@@ -387,23 +428,25 @@ class _HomeScreenState extends State<HomeScreen>
               children: [
                 Icon(
                   category['icon'],
-                  color: Colors.white,
+                  color: isSelected ? category['color'] : Colors.white,
                   size: 32,
                 ),
                 const Spacer(),
                 Text(
                   category['name'],
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: isSelected ? category['color'] : Colors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${category['count']} Etkinlik',
-                  style: const TextStyle(
-                    color: Colors.white70,
+                  '${_events.where((e) => e.category == category['name']).length} Etkinlik',
+                  style: TextStyle(
+                    color: isSelected
+                        ? category['color'].withOpacity(0.7)
+                        : Colors.white70,
                     fontSize: 12,
                   ),
                 ),
@@ -456,10 +499,12 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Widget _buildEventsList() {
+    final events = _filteredEvents;
+
     return SliverList(
       delegate: SliverChildBuilderDelegate(
         (context, index) {
-          if (_events.isEmpty) {
+          if (events.isEmpty) {
             return Center(
               child: Padding(
                 padding: const EdgeInsets.all(32.0),
@@ -472,7 +517,9 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'Henüz etkinlik eklenmemiş',
+                      _selectedCategory == null
+                          ? 'Henüz etkinlik eklenmemiş'
+                          : '$_selectedCategory kategorisinde etkinlik bulunamadı',
                       style: TextStyle(
                         color: Colors.white.withOpacity(0.5),
                         fontSize: 16,
@@ -484,7 +531,7 @@ class _HomeScreenState extends State<HomeScreen>
             );
           }
 
-          final event = _events[index];
+          final event = events[index];
           return EventListItem(
             event: event,
             onTap: () {
@@ -496,7 +543,7 @@ class _HomeScreenState extends State<HomeScreen>
             },
           );
         },
-        childCount: _events.isEmpty ? 1 : _events.length,
+        childCount: events.isEmpty ? 1 : events.length,
       ),
     );
   }

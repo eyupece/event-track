@@ -12,6 +12,7 @@ class MiniCalendarWidget extends StatelessWidget {
   final int dailyEvents;
   final int weeklyEvents;
   final int monthlyEvents;
+  final String? selectedCategory;
 
   const MiniCalendarWidget({
     Key? key,
@@ -24,6 +25,7 @@ class MiniCalendarWidget extends StatelessWidget {
     this.dailyEvents = 0,
     this.weeklyEvents = 0,
     this.monthlyEvents = 0,
+    this.selectedCategory,
   }) : super(key: key);
 
   @override
@@ -138,6 +140,23 @@ class MiniCalendarWidget extends StatelessWidget {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
+                          if (selectedCategory != null) ...[
+                            const TextSpan(
+                              text: ' - ',
+                              style: TextStyle(
+                                color: Colors.white60,
+                                fontSize: 16,
+                              ),
+                            ),
+                            TextSpan(
+                              text: selectedCategory!,
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 14,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
