@@ -111,6 +111,18 @@ class _HomeScreenState extends State<HomeScreen>
       'color': const Color(0xFF4ECDC4),
       'count': 2,
     },
+    {
+      'name': 'Tiyatro',
+      'icon': Icons.theater_comedy,
+      'color': const Color(0xFF9B59B6),
+      'count': 0,
+    },
+    {
+      'name': 'Spor',
+      'icon': Icons.sports_soccer,
+      'color': const Color(0xFF2ECC71),
+      'count': 0,
+    },
   ];
 
   final EventRepository _eventRepository = EventRepository();
