@@ -7,6 +7,7 @@ import './add_event_screen.dart';
 import '../../domain/models/event_model.dart';
 import '../../data/repositories/event_repository.dart';
 import '../widgets/event_list_item.dart';
+import '../widgets/mini_calendar_widget.dart';
 
 // Grafik çizimi için özel painter
 class ChartPainter extends CustomPainter {
@@ -114,6 +115,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   final EventRepository _eventRepository = EventRepository();
   List<Event> _events = [];
+  Map<DateTime, List<Event>> _eventsByDay = {};
 
   @override
   void initState() {
@@ -128,8 +130,31 @@ class _HomeScreenState extends State<HomeScreen>
 
   Future<void> _loadEvents() async {
     final events = await _eventRepository.getEvents();
+    final eventsByDay = <DateTime, List<Event>>{};
+
+    for (var event in events) {
+      final day = DateTime(
+        event.date.year,
+        event.date.month,
+        event.date.day,
+      );
+
+      if (eventsByDay[day] == null) {
+        eventsByDay[day] = [];
+      }
+      eventsByDay[day]!.add(event);
+    }
+
     setState(() {
       _events = events;
+      _eventsByDay = eventsByDay;
+    });
+  }
+
+  void _onDaySelected(DateTime selectedDay) {
+    setState(() {
+      _selectedDay = selectedDay;
+      _focusedDay = selectedDay;
     });
   }
 
@@ -148,7 +173,7 @@ class _HomeScreenState extends State<HomeScreen>
           slivers: [
             _buildHeader(),
             _buildSearchBar(),
-            _buildDateBar(),
+            _buildMiniCalendar(),
             _buildCategoryGrid(),
             _buildEventsList(),
           ],
@@ -258,277 +283,46 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _buildDateBar() {
+  Widget _buildMiniCalendar() {
     final now = DateTime.now();
-    final dates =
-        List.generate(5, (index) => now.add(Duration(days: index - 2)));
+    final startOfDay = DateTime(now.year, now.month, now.day);
+    final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+    final startOfMonth = DateTime(now.year, now.month, 1);
+
+    // Tamamlanma durumuna göre hesaplama
+    final completedEvents = _events.where((e) => e.isCompleted).length;
+    final pendingEvents = _events.where((e) => !e.isCompleted).length;
+
+    // Günlük etkinlikler (bugün)
+    final dailyEvents = _events
+        .where((e) =>
+            e.date.isAfter(startOfDay.subtract(const Duration(days: 1))) &&
+            e.date.isBefore(startOfDay.add(const Duration(days: 1))))
+        .length;
+
+    // Haftalık etkinlikler (bu hafta)
+    final weeklyEvents = _events
+        .where((e) =>
+            e.date.isAfter(startOfWeek.subtract(const Duration(days: 1))) &&
+            e.date.isBefore(startOfWeek.add(const Duration(days: 7))))
+        .length;
+
+    // Aylık etkinlikler (bu ay)
+    final monthlyEvents = _events
+        .where((e) => e.date.month == now.month && e.date.year == now.year)
+        .length;
 
     return SliverToBoxAdapter(
-      child: Container(
-        margin: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AppColors.primary.withOpacity(0.2),
-                    Colors.white.withOpacity(0.1),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Bu Ay',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 14,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              Text(
-                                '${_calculateTotalEvents()} Etkinlik',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.greenAccent.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.arrow_upward,
-                                      color: Colors.greenAccent,
-                                      size: 16,
-                                    ),
-                                    const SizedBox(width: 2),
-                                    Text(
-                                      '%${_calculateGrowthRate()}',
-                                      style: const TextStyle(
-                                        color: Colors.greenAccent,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: InkWell(
-                          onTap: _showCustomMonthPicker,
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.calendar_today,
-                                color: Colors.white70,
-                                size: 16,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                DateFormat('MMM yyyy', 'tr_TR')
-                                    .format(_focusedDay),
-                                style: const TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              const Icon(
-                                Icons.arrow_drop_down,
-                                color: Colors.white70,
-                                size: 20,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _buildStatItem(
-                        icon: Icons.check_circle_outline,
-                        label: 'Tamamlanan',
-                        value: _calculateCompletedEvents(),
-                        color: Colors.greenAccent,
-                      ),
-                      const SizedBox(width: 48),
-                      _buildStatItem(
-                        icon: Icons.pending_outlined,
-                        label: 'Bekleyen',
-                        value: _calculatePendingEvents(),
-                        color: Colors.orangeAccent,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: dates.map((date) {
-                final isSelected = date.day == now.day;
-                return _buildDateItem(date, isSelected);
-              }).toList(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatItem({
-    required IconData icon,
-    required String label,
-    required int value,
-    required Color color,
-  }) {
-    return Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              icon,
-              color: color,
-              size: 20,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            value.toString(),
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white60,
-              fontSize: 12,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  int _calculateTotalEvents() {
-    // Örnek veri
-    return 12;
-  }
-
-  int _calculateGrowthRate() {
-    // Örnek veri
-    return 15;
-  }
-
-  int _calculateCompletedEvents() {
-    // Örnek veri
-    return 8;
-  }
-
-  int _calculatePendingEvents() {
-    // Örnek veri
-    return 4;
-  }
-
-  int _calculateThisWeekEvents() {
-    // Örnek veri - Bu hafta içindeki etkinlik sayısı
-    return 3;
-  }
-
-  Widget _buildDateItem(DateTime date, bool isSelected) {
-    return InkWell(
-      onTap: () {
-        setState(() {
-          _selectedDay = date;
-          _focusedDay = date;
-        });
-      },
-      child: Container(
-        width: 50,
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-        decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          children: [
-            Text(
-              DateFormat('E', 'tr_TR').format(date).substring(0, 3),
-              style: TextStyle(
-                color: isSelected ? AppColors.primary : Colors.white70,
-                fontSize: 12,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              date.day.toString(),
-              style: TextStyle(
-                color: isSelected ? AppColors.primary : Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            if (isSelected)
-              Container(
-                margin: const EdgeInsets.only(top: 4),
-                width: 4,
-                height: 4,
-                decoration: const BoxDecoration(
-                  color: AppColors.primary,
-                  shape: BoxShape.circle,
-                ),
-              ),
-          ],
-        ),
+      child: MiniCalendarWidget(
+        focusedDay: _focusedDay,
+        selectedDay: _selectedDay,
+        onDaySelected: _onDaySelected,
+        events: _eventsByDay,
+        completedEvents: completedEvents,
+        pendingEvents: pendingEvents,
+        dailyEvents: dailyEvents,
+        weeklyEvents: weeklyEvents,
+        monthlyEvents: monthlyEvents,
       ),
     );
   }
@@ -750,142 +544,6 @@ class _HomeScreenState extends State<HomeScreen>
             color: AppColors.primary,
             fontSize: 16,
             fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showCustomMonthPicker() {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: AppColors.primary,
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.2),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.chevron_left, color: Colors.white),
-                    onPressed: () {
-                      setState(() {
-                        _focusedDay = DateTime(
-                          _focusedDay.year,
-                          _focusedDay.month - 1,
-                        );
-                      });
-                    },
-                  ),
-                  Text(
-                    DateFormat('MMMM yyyy', 'tr_TR').format(_focusedDay),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.chevron_right, color: Colors.white),
-                    onPressed: () {
-                      setState(() {
-                        _focusedDay = DateTime(
-                          _focusedDay.year,
-                          _focusedDay.month + 1,
-                        );
-                      });
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              TableCalendar(
-                firstDay: DateTime(2024),
-                lastDay: DateTime(2025, 12),
-                focusedDay: _focusedDay,
-                currentDay: DateTime.now(),
-                calendarFormat: CalendarFormat.month,
-                startingDayOfWeek: StartingDayOfWeek.monday,
-                headerVisible: false,
-                daysOfWeekHeight: 40,
-                rowHeight: 40,
-                selectedDayPredicate: (day) => isSameDay(day, _selectedDay),
-                onDaySelected: (selectedDay, focusedDay) {
-                  setState(() {
-                    _selectedDay = selectedDay;
-                    _focusedDay = focusedDay;
-                  });
-                  Navigator.pop(context);
-                },
-                calendarStyle: const CalendarStyle(
-                  defaultTextStyle: TextStyle(color: Colors.white),
-                  weekendTextStyle: TextStyle(color: Colors.white70),
-                  selectedTextStyle: TextStyle(color: AppColors.primary),
-                  todayTextStyle: TextStyle(color: Colors.white),
-                  outsideTextStyle: TextStyle(color: Colors.white38),
-                  selectedDecoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                  ),
-                  todayDecoration: BoxDecoration(
-                    color: Colors.white24,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                daysOfWeekStyle: const DaysOfWeekStyle(
-                  weekdayStyle: TextStyle(
-                    color: Colors.white70,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  weekendStyle: TextStyle(
-                    color: Colors.white70,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text(
-                      'İptal',
-                      style: TextStyle(color: Colors.white70),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  TextButton(
-                    onPressed: () {
-                      setState(() {
-                        _focusedDay = DateTime.now();
-                        _selectedDay = DateTime.now();
-                      });
-                      Navigator.pop(context);
-                    },
-                    child: const Text(
-                      'Bugün',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ),
-                ],
-              ),
-            ],
           ),
         ),
       ),

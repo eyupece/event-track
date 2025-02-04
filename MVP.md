@@ -15,6 +15,7 @@ Kullanıcıların etkinliklerini kategorize edip takip edebileceği, takvim üze
   - Responsive tasarım
   - Özel takvim seçici dialog
   - İlerleme kartı ve istatistikler
+  - Mini takvim widget'ı
 - Takvim entegrasyonu
   - Aylık/haftalık görünüm
   - Türkçe dil desteği
@@ -119,6 +120,7 @@ Kullanıcıların etkinliklerini kategorize edip takip edebileceği, takvim üze
 - İstatistikler
 - Sosyal paylaşım
 - Yedekleme/senkronizasyon
+- Etkilnik ekleye basılınca çıkan ve takvimde bir iki ui güncellemesi unutma
 
 ## 8. Güncellemeler
 - 03.02.2024: Modern UI ve takvim entegrasyonu tamamlandı
