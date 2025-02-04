@@ -1,7 +1,7 @@
 # Etkinlik Takip Uygulaması MVP Dokümanı
 
-Versiyon: 0.2.0
-Son Güncelleme: [03.02.2024]
+Versiyon: 0.2.1
+Son Güncelleme: [04.02.2024]
 
 ## 1. Proje Özeti
 Kullanıcıların etkinliklerini kategorize edip takip edebileceği, takvim üzerinden yönetebileceği ve etkinliklere not/fotoğraf ekleyebileceği bir mobil uygulama.
@@ -16,6 +16,10 @@ Kullanıcıların etkinliklerini kategorize edip takip edebileceği, takvim üze
   - Özel takvim seçici dialog
   - İlerleme kartı ve istatistikler
   - Mini takvim widget'ı
+  - Gelişmiş filtreleme arayüzü
+    - Durum filtreleri (Tamamlanan/Bekleyen)
+    - Tarih filtreleri (Bugün/Hafta/Ay)
+    - Görsel iyileştirmeler ve kullanıcı deneyimi
 - Takvim entegrasyonu
   - Aylık/haftalık görünüm
   - Türkçe dil desteği
@@ -123,6 +127,10 @@ Kullanıcıların etkinliklerini kategorize edip takip edebileceği, takvim üze
 - Etkilnik ekleye basılınca çıkan ve takvimde bir iki ui güncellemesi unutma
 
 ## 8. Güncellemeler
+- 04.02.2024: Filtreleme arayüzü iyileştirildi
+  - Filtreler arası boşluklar optimize edildi
+  - Seçili olmayan filtrelerin görünümü iyileştirildi
+  - Tema renkleriyle uyum sağlandı
 - 03.02.2024: Modern UI ve takvim entegrasyonu tamamlandı
 - 03.02.2024: MVP dokümanı güncellendi
 - 03.02.2024: Clean Architecture yapısı oluşturuldu
