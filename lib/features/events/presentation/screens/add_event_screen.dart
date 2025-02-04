@@ -4,6 +4,55 @@ import 'package:table_calendar/table_calendar.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/models/event_model.dart';
 
+// Form validasyonları için sabitler
+const int _titleMaxLength = 50;
+const int _descriptionMaxLength = 500;
+const int _locationMaxLength = 50;
+const int _notesMaxLength = 500;
+
+class EventFormValidator {
+  static String? validateTitle(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Başlık alanı boş bırakılamaz';
+    }
+    if (value.length < 3) {
+      return 'Başlık en az 3 karakter olmalıdır';
+    }
+    if (value.length > _titleMaxLength) {
+      return 'Başlık en fazla $_titleMaxLength karakter olabilir';
+    }
+    return null;
+  }
+
+  static String? validateDescription(String? value) {
+    if (value != null && value.length > _descriptionMaxLength) {
+      return 'Açıklama en fazla $_descriptionMaxLength karakter olabilir';
+    }
+    return null;
+  }
+
+  static String? validateLocation(String? value) {
+    if (value != null && value.length > _locationMaxLength) {
+      return 'Konum en fazla $_locationMaxLength karakter olabilir';
+    }
+    return null;
+  }
+
+  static String? validateNotes(String? value) {
+    if (value != null && value.length > _notesMaxLength) {
+      return 'Notlar en fazla $_notesMaxLength karakter olabilir';
+    }
+    return null;
+  }
+
+  static String? validateCategory(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Lütfen bir kategori seçin';
+    }
+    return null;
+  }
+}
+
 class AddEventScreen extends StatefulWidget {
   const AddEventScreen({super.key});
 
@@ -24,6 +73,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
   String? _titleError;
   String? _categoryError;
   String? _dateError;
+  bool _isLoading = false;
 
   final List<Map<String, dynamic>> _categories = [
     {
@@ -379,56 +429,69 @@ class _AddEventScreenState extends State<AddEventScreen> {
     bool isValid = true;
 
     // Başlık kontrolü
-    if (_titleController.text.trim().isEmpty) {
-      setState(() => _titleError = 'Başlık alanı boş bırakılamaz');
-      isValid = false;
-    } else if (_titleController.text.trim().length < 3) {
-      setState(() => _titleError = 'Başlık en az 3 karakter olmalıdır');
-      isValid = false;
-    } else {
-      setState(() => _titleError = null);
-    }
+    final titleError = EventFormValidator.validateTitle(_titleController.text);
+    setState(() => _titleError = titleError);
+    if (titleError != null) isValid = false;
 
     // Kategori kontrolü
-    if (_selectedCategory == null) {
-      setState(() => _categoryError = 'Lütfen bir kategori seçin');
-      isValid = false;
-    } else {
-      setState(() => _categoryError = null);
-    }
+    final categoryError =
+        EventFormValidator.validateCategory(_selectedCategory);
+    setState(() => _categoryError = categoryError);
+    if (categoryError != null) isValid = false;
 
     return isValid;
   }
 
-  void _submitForm() {
+  Future<void> _submitForm() async {
     if (!_validateForm()) {
       return;
     }
 
-    final event = Event(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      title: _titleController.text.trim(),
-      description: _descriptionController.text.trim(),
-      date: _selectedDate,
-      time: _selectedTime,
-      category: _selectedCategory!,
-      location: _locationController.text.trim(),
-      notes: _notesController.text.trim(),
-    );
+    setState(() => _isLoading = true);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Etkinlik başarıyla oluşturuldu'),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.all(16),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
+    try {
+      final event = Event(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        title: _titleController.text.trim(),
+        description: _descriptionController.text.trim(),
+        date: _selectedDate,
+        time: _selectedTime,
+        category: _selectedCategory!,
+        location: _locationController.text.trim(),
+        notes: _notesController.text.trim(),
+      );
+
+      // Simüle edilmiş gecikme (gerçek uygulamada kaldırılacak)
+      await Future.delayed(const Duration(seconds: 1));
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Etkinlik başarıyla oluşturuldu'),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
         ),
-      ),
-    );
+      );
 
-    Navigator.pop(context, event);
+      Navigator.pop(context, event);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Etkinlik oluşturulurken bir hata oluştu'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -438,84 +501,93 @@ class _AddEventScreenState extends State<AddEventScreen> {
         Navigator.of(context).pop();
         return false;
       },
-      child: Scaffold(
-        backgroundColor: AppColors.primary,
-        appBar: AppBar(
-          title: const Text('Yeni Etkinlik'),
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded),
-            onPressed: () => Navigator.pop(context),
-          ),
-          actions: [
-            TextButton(
-              onPressed: _submitForm,
-              child: const Text(
-                'Kaydet',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
+      child: Stack(
+        children: [
+          Scaffold(
+            backgroundColor: AppColors.primary,
+            appBar: AppBar(
+              title: const Text('Yeni Etkinlik'),
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                onPressed: () => Navigator.pop(context),
               ),
-            ),
-          ],
-        ),
-        body: Form(
-          key: _formKey,
-          child: ListView(
-            padding: const EdgeInsets.all(16.0),
-            children: [
-              Hero(
-                tag: 'addEventHero',
-                child: Material(
-                  color: Colors.transparent,
-                  child: Column(
-                    children: [
-                      _buildTextField(
-                        controller: _titleController,
-                        label: 'Başlık',
-                        prefixIcon: Icons.title,
-                        errorText: _titleError,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildTextField(
-                        controller: _descriptionController,
-                        label: 'Açıklama',
-                        maxLines: 3,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Lütfen bir açıklama girin';
-                          }
-                          return null;
-                        },
-                      ),
-                    ],
+              actions: [
+                TextButton(
+                  onPressed: _isLoading ? null : _submitForm,
+                  child: const Text(
+                    'Kaydet',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
+              ],
+            ),
+            body: Form(
+              key: _formKey,
+              child: ListView(
+                padding: const EdgeInsets.all(16.0),
+                children: [
+                  Hero(
+                    tag: 'addEventHero',
+                    child: Material(
+                      color: Colors.transparent,
+                      child: Column(
+                        children: [
+                          _buildTextField(
+                            controller: _titleController,
+                            label: 'Başlık',
+                            prefixIcon: Icons.title,
+                            errorText: _titleError,
+                            validator: EventFormValidator.validateTitle,
+                          ),
+                          const SizedBox(height: 16),
+                          _buildTextField(
+                            controller: _descriptionController,
+                            label: 'Açıklama',
+                            maxLines: 3,
+                            validator: EventFormValidator.validateDescription,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildDateField(),
+                  const SizedBox(height: 16),
+                  _buildTimeField(),
+                  const SizedBox(height: 16),
+                  _buildCategoryDropdown(),
+                  const SizedBox(height: 16),
+                  _buildTextField(
+                    controller: _locationController,
+                    label: 'Konum',
+                    prefixIcon: Icons.location_on_outlined,
+                    validator: EventFormValidator.validateLocation,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildTextField(
+                    controller: _notesController,
+                    label: 'Notlar',
+                    maxLines: 3,
+                    validator: EventFormValidator.validateNotes,
+                  ),
+                  const SizedBox(height: 32),
+                ],
               ),
-              const SizedBox(height: 16),
-              _buildDateField(),
-              const SizedBox(height: 16),
-              _buildTimeField(),
-              const SizedBox(height: 16),
-              _buildCategoryDropdown(),
-              const SizedBox(height: 16),
-              _buildTextField(
-                controller: _locationController,
-                label: 'Konum',
-                prefixIcon: Icons.location_on_outlined,
-              ),
-              const SizedBox(height: 16),
-              _buildTextField(
-                controller: _notesController,
-                label: 'Notlar',
-                maxLines: 3,
-              ),
-              const SizedBox(height: 32),
-            ],
+            ),
           ),
-        ),
+          if (_isLoading)
+            Container(
+              color: Colors.black54,
+              child: const Center(
+                child: CircularProgressIndicator(),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -528,10 +600,52 @@ class _AddEventScreenState extends State<AddEventScreen> {
     String? Function(String?)? validator,
     String? errorText,
   }) {
+    final int? maxLength = label == 'Başlık'
+        ? _titleMaxLength
+        : label == 'Açıklama'
+            ? _descriptionMaxLength
+            : label == 'Konum'
+                ? _locationMaxLength
+                : label == 'Notlar'
+                    ? _notesMaxLength
+                    : null;
+
     return TextFormField(
       controller: controller,
       maxLines: maxLines,
       style: const TextStyle(color: Colors.white),
+      maxLength: maxLength,
+      buildCounter: (
+        BuildContext context, {
+        required int currentLength,
+        required bool isFocused,
+        int? maxLength,
+      }) {
+        if (maxLength == null) return null;
+        final remaining = maxLength - currentLength;
+        final color = remaining < 20
+            ? Colors.orange
+            : remaining < 10
+                ? Colors.red
+                : Colors.white70;
+
+        return Text(
+          '$remaining karakter kaldı',
+          style: TextStyle(
+            color: color,
+            fontSize: 12,
+          ),
+        );
+      },
+      onChanged: (value) {
+        if (validator != null) {
+          setState(() {
+            if (label == 'Başlık') {
+              _titleError = validator(value);
+            }
+          });
+        }
+      },
       decoration: InputDecoration(
         labelText: label,
         labelStyle: const TextStyle(color: Colors.white70),
