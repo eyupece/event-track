@@ -117,6 +117,13 @@ class _HomeScreenState extends State<HomeScreen>
   List<Event> _events = [];
   Map<DateTime, List<Event>> _eventsByDay = {};
 
+  String _searchQuery = '';
+  bool _isSearching = false;
+
+  // Filtre seçenekleri
+  bool? _isCompletedFilter;
+  String? _dateFilter;
+
   @override
   void initState() {
     super.initState();
@@ -249,33 +256,81 @@ class _HomeScreenState extends State<HomeScreen>
           ),
           child: Row(
             children: [
-              const Icon(
-                Icons.search,
-                color: Colors.white70,
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: _isSearching
+                    ? IconButton(
+                        icon: const Icon(
+                          Icons.arrow_back,
+                          color: Colors.white70,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _searchQuery = '';
+                            _isSearching = false;
+                          });
+                        },
+                      )
+                    : const Icon(
+                        Icons.search,
+                        color: Colors.white70,
+                      ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: TextField(
                   style: const TextStyle(color: Colors.white),
                   decoration: const InputDecoration(
-                    hintText: 'Etkinlik ara...',
+                    hintText: 'Başlık, açıklama veya konum ara...',
                     hintStyle: TextStyle(color: Colors.white60),
                     border: InputBorder.none,
                   ),
                   onChanged: (value) {
-                    // TODO: Arama fonksiyonu
+                    setState(() {
+                      _searchQuery = value;
+                      _isSearching = value.isNotEmpty;
+                    });
                   },
                 ),
               ),
-              IconButton(
-                icon: const Icon(
-                  Icons.tune,
-                  color: Colors.white70,
+              if (_isSearching)
+                IconButton(
+                  icon: const Icon(
+                    Icons.clear,
+                    color: Colors.white70,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _searchQuery = '';
+                      _isSearching = false;
+                    });
+                  },
+                )
+              else
+                Stack(
+                  children: [
+                    IconButton(
+                      icon: const Icon(
+                        Icons.tune,
+                        color: Colors.white70,
+                      ),
+                      onPressed: _showFilterDialog,
+                    ),
+                    if (_isCompletedFilter != null || _dateFilter != null)
+                      Positioned(
+                        right: 8,
+                        top: 8,
+                        child: Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: Colors.orangeAccent,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
-                onPressed: () {
-                  // TODO: Filtre menüsü
-                },
-              ),
             ],
           ),
         ),
@@ -333,12 +388,275 @@ class _HomeScreenState extends State<HomeScreen>
 
   // Filtrelenmiş etkinlikleri döndüren getter
   List<Event> get _filteredEvents {
-    if (_selectedCategory == null) {
-      return _events;
+    List<Event> events = _events;
+
+    // Kategori filtresi
+    if (_selectedCategory != null) {
+      events =
+          events.where((event) => event.category == _selectedCategory).toList();
     }
-    return _events
-        .where((event) => event.category == _selectedCategory)
-        .toList();
+
+    // Tamamlanma durumu filtresi
+    if (_isCompletedFilter != null) {
+      events = events
+          .where((event) => event.isCompleted == _isCompletedFilter)
+          .toList();
+    }
+
+    // Tarih filtresi
+    if (_dateFilter != null) {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+
+      switch (_dateFilter) {
+        case 'today':
+          events = events
+              .where((event) =>
+                  event.date.year == today.year &&
+                  event.date.month == today.month &&
+                  event.date.day == today.day)
+              .toList();
+          break;
+        case 'week':
+          final startOfWeek = today.subtract(Duration(days: today.weekday - 1));
+          final endOfWeek = startOfWeek.add(const Duration(days: 7));
+          events = events
+              .where((event) =>
+                  event.date
+                      .isAfter(startOfWeek.subtract(const Duration(days: 1))) &&
+                  event.date.isBefore(endOfWeek))
+              .toList();
+          break;
+        case 'month':
+          events = events
+              .where((event) =>
+                  event.date.year == today.year &&
+                  event.date.month == today.month)
+              .toList();
+          break;
+      }
+    }
+
+    // Arama filtresi
+    if (_searchQuery.isNotEmpty) {
+      final query = _searchQuery.toLowerCase();
+      events = events.where((event) {
+        return event.title.toLowerCase().contains(query) ||
+            event.description.toLowerCase().contains(query) ||
+            (event.location?.toLowerCase().contains(query) ?? false);
+      }).toList();
+    }
+
+    // Tarihe göre sıralama (varsayılan)
+    events.sort((a, b) => a.date.compareTo(b.date));
+
+    return events;
+  }
+
+  void _showFilterDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => Dialog(
+          backgroundColor: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white24),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Filtrele',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'Durum',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    FilterChip(
+                      label: const Text('Tümü'),
+                      selected: _isCompletedFilter == null,
+                      onSelected: (selected) {
+                        setState(() => _isCompletedFilter = null);
+                      },
+                      backgroundColor: Colors.white.withOpacity(0.9),
+                      selectedColor: AppColors.accent,
+                      checkmarkColor: Colors.white,
+                      labelStyle: TextStyle(
+                        color: _isCompletedFilter == null
+                            ? Colors.white
+                            : AppColors.primary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    FilterChip(
+                      label: const Text('Tamamlanan'),
+                      selected: _isCompletedFilter == true,
+                      onSelected: (selected) {
+                        setState(
+                            () => _isCompletedFilter = selected ? true : null);
+                      },
+                      backgroundColor: Colors.white.withOpacity(0.9),
+                      selectedColor: const Color(0xFF4CAF50),
+                      checkmarkColor: Colors.white,
+                      labelStyle: TextStyle(
+                        color: _isCompletedFilter == true
+                            ? Colors.white
+                            : AppColors.primary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    FilterChip(
+                      label: const Text('Bekleyen'),
+                      selected: _isCompletedFilter == false,
+                      onSelected: (selected) {
+                        setState(
+                            () => _isCompletedFilter = selected ? false : null);
+                      },
+                      backgroundColor: Colors.white.withOpacity(0.9),
+                      selectedColor: const Color(0xFFFF9800),
+                      checkmarkColor: Colors.white,
+                      labelStyle: TextStyle(
+                        color: _isCompletedFilter == false
+                            ? Colors.white
+                            : AppColors.primary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Tarih',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    FilterChip(
+                      label: const Text('Tümü'),
+                      selected: _dateFilter == null,
+                      onSelected: (selected) {
+                        setState(() => _dateFilter = null);
+                      },
+                      backgroundColor: Colors.white.withOpacity(0.9),
+                      selectedColor: AppColors.accent,
+                      checkmarkColor: Colors.white,
+                      labelStyle: TextStyle(
+                        color: _dateFilter == null
+                            ? Colors.white
+                            : AppColors.primary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    FilterChip(
+                      label: const Text('Bugün'),
+                      selected: _dateFilter == 'today',
+                      onSelected: (selected) {
+                        setState(() => _dateFilter = selected ? 'today' : null);
+                      },
+                      backgroundColor: Colors.white.withOpacity(0.9),
+                      selectedColor: const Color(0xFF2196F3),
+                      checkmarkColor: Colors.white,
+                      labelStyle: TextStyle(
+                        color: _dateFilter == 'today'
+                            ? Colors.white
+                            : AppColors.primary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    FilterChip(
+                      label: const Text('Bu Hafta'),
+                      selected: _dateFilter == 'week',
+                      onSelected: (selected) {
+                        setState(() => _dateFilter = selected ? 'week' : null);
+                      },
+                      backgroundColor: Colors.white.withOpacity(0.9),
+                      selectedColor: const Color(0xFF9C27B0),
+                      checkmarkColor: Colors.white,
+                      labelStyle: TextStyle(
+                        color: _dateFilter == 'week'
+                            ? Colors.white
+                            : AppColors.primary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    FilterChip(
+                      label: const Text('Bu Ay'),
+                      selected: _dateFilter == 'month',
+                      onSelected: (selected) {
+                        setState(() => _dateFilter = selected ? 'month' : null);
+                      },
+                      backgroundColor: Colors.white.withOpacity(0.9),
+                      selectedColor: const Color(0xFFE91E63),
+                      checkmarkColor: Colors.white,
+                      labelStyle: TextStyle(
+                        color: _dateFilter == 'month'
+                            ? Colors.white
+                            : AppColors.primary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () {
+                        setState(() {
+                          _isCompletedFilter = null;
+                          _dateFilter = null;
+                        });
+                      },
+                      child: const Text(
+                        'Sıfırla',
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      onPressed: () {
+                        this.setState(() {}); // Ana ekranı güncelle
+                        Navigator.pop(context);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accent,
+                      ),
+                      child: const Text('Uygula'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildCategoryGrid() {
@@ -517,9 +835,7 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      _selectedCategory == null
-                          ? 'Henüz etkinlik eklenmemiş'
-                          : '$_selectedCategory kategorisinde etkinlik bulunamadı',
+                      _buildEmptyMessage(),
                       style: TextStyle(
                         color: Colors.white.withOpacity(0.5),
                         fontSize: 16,
@@ -534,6 +850,7 @@ class _HomeScreenState extends State<HomeScreen>
           final event = events[index];
           return EventListItem(
             event: event,
+            searchQuery: _searchQuery,
             onTap: () {
               // TODO: Etkinlik detay sayfasına git
             },
@@ -546,6 +863,49 @@ class _HomeScreenState extends State<HomeScreen>
         childCount: events.isEmpty ? 1 : events.length,
       ),
     );
+  }
+
+  String _buildEmptyMessage() {
+    final List<String> filters = [];
+
+    if (_searchQuery.isNotEmpty) {
+      filters.add('"$_searchQuery" araması');
+    }
+
+    if (_selectedCategory != null) {
+      filters.add('$_selectedCategory kategorisi');
+    }
+
+    if (_isCompletedFilter != null) {
+      filters.add(_isCompletedFilter!
+          ? 'tamamlanan etkinlikler'
+          : 'bekleyen etkinlikler');
+    }
+
+    if (_dateFilter != null) {
+      switch (_dateFilter) {
+        case 'today':
+          filters.add('bugünkü etkinlikler');
+          break;
+        case 'week':
+          filters.add('bu haftaki etkinlikler');
+          break;
+        case 'month':
+          filters.add('bu aydaki etkinlikler');
+          break;
+      }
+    }
+
+    if (filters.isEmpty) {
+      return 'Henüz etkinlik eklenmemiş';
+    }
+
+    if (filters.length == 1) {
+      return '${filters[0]} için etkinlik bulunamadı';
+    }
+
+    final lastFilter = filters.removeLast();
+    return '${filters.join(", ")} ve $lastFilter için etkinlik bulunamadı';
   }
 
   Widget _buildFAB() {
