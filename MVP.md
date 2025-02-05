@@ -1,6 +1,6 @@
 # Etkinlik Takip Uygulaması MVP Dokümanı
 
-Versiyon: 0.2.3
+Versiyon: 0.2.4
 Son Güncelleme: [05.02.2024]
 
 ## 1. Proje Özeti
@@ -189,6 +189,11 @@ Kullanıcıların etkinliklerini kategorize edip takip edebileceği, takvim üze
 - Etkilnik ekleye basılınca çıkan ve takvimde bir iki ui güncellemesi unutma
 
 ## 8. Güncellemeler
+- 05.02.2024: Null safety ve deprecated API kullanımları düzeltildi
+  - Event detail ekranında null kontrolleri iyileştirildi
+  - withOpacity yerine withAlpha kullanımına geçildi
+  - Opacity değerleri alpha değerlerine dönüştürüldü
+  - Kod okunabilirliği ve tip güvenliği artırıldı
 - 05.02.2024: MVP.md güncellendi
   - Tamamlanan özellikler detaylandırıldı
   - Yeni geliştirme aşamaları eklendi

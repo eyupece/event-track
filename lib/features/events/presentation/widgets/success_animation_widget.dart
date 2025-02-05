@@ -77,7 +77,7 @@ class _SuccessAnimationWidgetState extends State<SuccessAnimationWidget>
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
+                    color: Colors.black.withAlpha(51),
                     blurRadius: 10,
                     spreadRadius: 2,
                   ),

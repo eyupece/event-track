@@ -33,7 +33,7 @@ class MiniCalendarWidget extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white.withAlpha(25),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -59,18 +59,18 @@ class MiniCalendarWidget extends StatelessWidget {
             ),
             calendarStyle: CalendarStyle(
               isTodayHighlighted: true,
-              selectedDecoration: BoxDecoration(
+              selectedDecoration: const BoxDecoration(
                 color: AppColors.accent,
                 shape: BoxShape.circle,
               ),
               todayDecoration: BoxDecoration(
-                color: AppColors.accent.withOpacity(0.3),
+                color: AppColors.accent.withAlpha(76),
                 shape: BoxShape.circle,
               ),
               defaultTextStyle: const TextStyle(color: Colors.white),
               weekendTextStyle: const TextStyle(color: Colors.white70),
               outsideTextStyle: const TextStyle(color: Colors.white38),
-              markerDecoration: BoxDecoration(
+              markerDecoration: const BoxDecoration(
                 color: AppColors.accent,
                 shape: BoxShape.circle,
               ),
@@ -97,8 +97,8 @@ class MiniCalendarWidget extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            AppColors.accent.withOpacity(0.2),
-            Colors.white.withOpacity(0.1),
+            AppColors.accent.withAlpha(51),
+            Colors.white.withAlpha(25),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -178,7 +178,7 @@ class MiniCalendarWidget extends StatelessWidget {
                               gradient: LinearGradient(
                                 colors: [
                                   Colors.greenAccent,
-                                  Colors.greenAccent.withOpacity(0.6),
+                                  Colors.greenAccent.withAlpha(153),
                                 ],
                               ),
                               borderRadius: BorderRadius.circular(3),
@@ -242,7 +242,7 @@ class MiniCalendarWidget extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.2),
+            color: color.withAlpha(51),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(

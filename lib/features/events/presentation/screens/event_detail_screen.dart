@@ -22,7 +22,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _isCompleted = widget.event.isCompleted ?? false;
+    _isCompleted = widget.event.isCompleted;
   }
 
   void _toggleCompleted() {
@@ -163,7 +163,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
               title: 'Saat',
               value: widget.event.time.format(context),
             ),
-            if (widget.event.location?.isNotEmpty ?? false) ...[
+            if (widget.event.location?.isNotEmpty == true) ...[
               const SizedBox(height: 16),
               _buildInfoCard(
                 icon: Icons.location_on_outlined,
@@ -172,7 +172,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                 value: widget.event.location!,
               ),
             ],
-            if (widget.event.description.isNotEmpty ?? false) ...[
+            if (widget.event.description.isNotEmpty) ...[
               const SizedBox(height: 24),
               const Text(
                 'Açıklama',
@@ -191,7 +191,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                 ),
               ),
             ],
-            if (widget.event.notes?.isNotEmpty ?? false) ...[
+            if (widget.event.notes?.isNotEmpty == true) ...[
               const SizedBox(height: 24),
               const Text(
                 'Notlar',
@@ -218,7 +218,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
               child: Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.1),
+                  color: Colors.white.withAlpha(25),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                     color: _isCompleted ? Colors.green : Colors.white24,
@@ -235,7 +235,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                       height: 28,
                       decoration: BoxDecoration(
                         color: _isCompleted
-                            ? Colors.green.withOpacity(0.15)
+                            ? Colors.green.withAlpha(38)
                             : Colors.transparent,
                         shape: BoxShape.circle,
                         border: Border.all(
