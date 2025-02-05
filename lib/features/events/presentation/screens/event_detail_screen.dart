@@ -70,7 +70,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
           ),
           TextButton(
             onPressed: () {
-              // TODO: Repository üzerinden silme işlemi yapılacak
+              // Repository üzerinden silme işlemi yapılacak ve kullanıcıya bildirim gösterilecek
               Navigator.pop(context); // Dialog'u kapat
               Navigator.pop(context); // Detay sayfasından çık
             },
@@ -85,15 +85,17 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   }
 
   void _editEvent() async {
-    final result = await Navigator.push(
+    if (!mounted) return;
+
+    final result = await Navigator.push<Event>(
       context,
       MaterialPageRoute(
         builder: (context) => EventFormScreen(event: widget.event),
       ),
     );
 
+    if (!mounted) return;
     if (result != null) {
-      // Değişiklikleri ana sayfaya bildir
       Navigator.pop(context, result);
     }
   }
@@ -279,7 +281,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                                 : 'Bu etkinlik henüz tamamlanmadı',
                             style: TextStyle(
                               color: _isCompleted
-                                  ? Colors.green.withOpacity(0.7)
+                                  ? Colors.green.withAlpha(70)
                                   : Colors.white70,
                               fontSize: 14,
                             ),
@@ -306,7 +308,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white.withAlpha(25),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -314,7 +316,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.2),
+              color: color.withAlpha(51),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(icon, color: color),

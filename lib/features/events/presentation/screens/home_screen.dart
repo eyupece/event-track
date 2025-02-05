@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:table_calendar/table_calendar.dart';
 import '../../../../core/theme/app_colors.dart';
 import './event_form_screen.dart';
 import '../../domain/models/event_model.dart';
@@ -85,42 +84,42 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
-  final CalendarFormat _calendarFormat = CalendarFormat.week;
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
   late AnimationController _fabAnimationController;
   String? _selectedCategory;
-  final String userName = "Eyüp"; // TODO: Gerçek kullanıcı adını al
+  // Kullanıcı adı SharedPreferences'dan alınacak ve profil sayfasından düzenlenebilir olacak
+  final String userName = "Eyüp";
 
-  final List<Map<String, dynamic>> _categories = [
+  static const List<Map<String, dynamic>> _categories = [
     {
       'name': 'Konser',
       'icon': Icons.music_note,
-      'color': const Color(0xFFFF6B6B),
+      'color': Color(0xFFFF6B6B),
       'count': 5,
     },
     {
       'name': 'Teknoloji',
       'icon': Icons.computer,
-      'color': const Color(0xFFFFB84D),
+      'color': Color(0xFFFFB84D),
       'count': 1,
     },
     {
       'name': 'Sinema',
       'icon': Icons.movie,
-      'color': const Color(0xFF4ECDC4),
+      'color': Color(0xFF4ECDC4),
       'count': 2,
     },
     {
       'name': 'Tiyatro',
       'icon': Icons.theater_comedy,
-      'color': const Color(0xFF9B59B6),
+      'color': Color(0xFF9B59B6),
       'count': 0,
     },
     {
       'name': 'Spor',
       'icon': Icons.sports_soccer,
-      'color': const Color(0xFF2ECC71),
+      'color': Color(0xFF2ECC71),
       'count': 0,
     },
   ];
@@ -153,7 +152,7 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Future<void> _loadEvents() async {
-    print('Liste yükleme başladı: ${DateTime.now().millisecondsSinceEpoch}');
+    debugPrint('Liste yükleme başladı');
     final events = await _eventRepository.getEvents();
     final eventsByDay = <DateTime, List<Event>>{};
 
@@ -176,7 +175,7 @@ class _HomeScreenState extends State<HomeScreen>
         _eventsByDay = eventsByDay;
       });
     }
-    print('Liste yükleme bitti: ${DateTime.now().millisecondsSinceEpoch}');
+    debugPrint('Liste yükleme tamamlandı');
   }
 
   void _onDaySelected(DateTime selectedDay) {
@@ -317,7 +316,7 @@ class _HomeScreenState extends State<HomeScreen>
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
-            color: Colors.white12,
+            color: Colors.white.withAlpha(25),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Row(
@@ -408,7 +407,6 @@ class _HomeScreenState extends State<HomeScreen>
     final now = DateTime.now();
     final startOfDay = DateTime(now.year, now.month, now.day);
     final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
-    final startOfMonth = DateTime(now.year, now.month, 1);
 
     // Filtrelenmiş etkinlikler
     final filteredEvents = _filteredEvents;
@@ -431,11 +429,6 @@ class _HomeScreenState extends State<HomeScreen>
             e.date.isBefore(startOfWeek.add(const Duration(days: 7))))
         .length;
 
-    // Aylık etkinlikler (bu ay)
-    final monthlyEvents = filteredEvents
-        .where((e) => e.date.month == now.month && e.date.year == now.year)
-        .length;
-
     return SliverToBoxAdapter(
       child: MiniCalendarWidget(
         focusedDay: _focusedDay,
@@ -446,7 +439,6 @@ class _HomeScreenState extends State<HomeScreen>
         pendingEvents: pendingEvents,
         dailyEvents: dailyEvents,
         weeklyEvents: weeklyEvents,
-        monthlyEvents: monthlyEvents,
         selectedCategory: _selectedCategory,
       ),
     );
@@ -563,7 +555,7 @@ class _HomeScreenState extends State<HomeScreen>
                       onSelected: (selected) {
                         setState(() => _isCompletedFilter = null);
                       },
-                      backgroundColor: Colors.white.withOpacity(0.9),
+                      backgroundColor: Colors.white.withAlpha(25),
                       selectedColor: AppColors.accent,
                       checkmarkColor: Colors.white,
                       labelStyle: TextStyle(
@@ -580,7 +572,7 @@ class _HomeScreenState extends State<HomeScreen>
                         setState(
                             () => _isCompletedFilter = selected ? true : null);
                       },
-                      backgroundColor: Colors.white.withOpacity(0.9),
+                      backgroundColor: Colors.white.withAlpha(25),
                       selectedColor: const Color(0xFF4CAF50),
                       checkmarkColor: Colors.white,
                       labelStyle: TextStyle(
@@ -597,7 +589,7 @@ class _HomeScreenState extends State<HomeScreen>
                         setState(
                             () => _isCompletedFilter = selected ? false : null);
                       },
-                      backgroundColor: Colors.white.withOpacity(0.9),
+                      backgroundColor: Colors.white.withAlpha(25),
                       selectedColor: const Color(0xFFFF9800),
                       checkmarkColor: Colors.white,
                       labelStyle: TextStyle(
@@ -628,7 +620,7 @@ class _HomeScreenState extends State<HomeScreen>
                       onSelected: (selected) {
                         setState(() => _dateFilter = null);
                       },
-                      backgroundColor: Colors.white.withOpacity(0.9),
+                      backgroundColor: Colors.white.withAlpha(25),
                       selectedColor: AppColors.accent,
                       checkmarkColor: Colors.white,
                       labelStyle: TextStyle(
@@ -644,7 +636,7 @@ class _HomeScreenState extends State<HomeScreen>
                       onSelected: (selected) {
                         setState(() => _dateFilter = selected ? 'today' : null);
                       },
-                      backgroundColor: Colors.white.withOpacity(0.9),
+                      backgroundColor: Colors.white.withAlpha(25),
                       selectedColor: const Color(0xFF2196F3),
                       checkmarkColor: Colors.white,
                       labelStyle: TextStyle(
@@ -660,7 +652,7 @@ class _HomeScreenState extends State<HomeScreen>
                       onSelected: (selected) {
                         setState(() => _dateFilter = selected ? 'week' : null);
                       },
-                      backgroundColor: Colors.white.withOpacity(0.9),
+                      backgroundColor: Colors.white.withAlpha(25),
                       selectedColor: const Color(0xFF9C27B0),
                       checkmarkColor: Colors.white,
                       labelStyle: TextStyle(
@@ -676,7 +668,7 @@ class _HomeScreenState extends State<HomeScreen>
                       onSelected: (selected) {
                         setState(() => _dateFilter = selected ? 'month' : null);
                       },
-                      backgroundColor: Colors.white.withOpacity(0.9),
+                      backgroundColor: Colors.white.withAlpha(25),
                       selectedColor: const Color(0xFFE91E63),
                       checkmarkColor: Colors.white,
                       labelStyle: TextStyle(
@@ -829,7 +821,7 @@ class _HomeScreenState extends State<HomeScreen>
                   '${_events.where((e) => e.category == category['name']).length} Etkinlik',
                   style: TextStyle(
                     color: isSelected
-                        ? category['color'].withOpacity(0.7)
+                        ? category['color'].withAlpha(200)
                         : Colors.white70,
                     fontSize: 12,
                   ),
@@ -847,7 +839,7 @@ class _HomeScreenState extends State<HomeScreen>
       width: 120,
       margin: const EdgeInsets.all(4),
       child: Card(
-        color: Colors.white10,
+        color: Colors.white.withAlpha(25),
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
@@ -855,7 +847,7 @@ class _HomeScreenState extends State<HomeScreen>
         ),
         child: InkWell(
           onTap: () {
-            // TODO: Yeni kategori ekleme
+            // Kategori ekleme modalı gösterilecek ve yeni kategori repository'e kaydedilecek
           },
           borderRadius: BorderRadius.circular(16),
           child: const Column(
@@ -883,22 +875,22 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _showUndoSnackBar() {
-    print('Snackbar hazırlanıyor: ${DateTime.now().millisecondsSinceEpoch}');
+    debugPrint('Snackbar hazırlanıyor');
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(
+            const Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.delete_outline,
                   color: Colors.white70,
                   size: 16,
                 ),
-                const SizedBox(width: 8),
-                const Text(
+                SizedBox(width: 8),
+                Text(
                   'Etkinlik silindi',
                   style: TextStyle(
                     color: Colors.white70,
@@ -937,7 +929,7 @@ class _HomeScreenState extends State<HomeScreen>
             ),
           ],
         ),
-        backgroundColor: Colors.black.withOpacity(0.8),
+        backgroundColor: Colors.black.withAlpha(204),
         duration: const Duration(seconds: 2),
         behavior: SnackBarBehavior.fixed,
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
@@ -945,7 +937,6 @@ class _HomeScreenState extends State<HomeScreen>
         elevation: 0,
       ),
     );
-    print('Snackbar gösterildi: ${DateTime.now().millisecondsSinceEpoch}');
   }
 
   Widget _buildEventsList() {
@@ -963,13 +954,13 @@ class _HomeScreenState extends State<HomeScreen>
                     Icon(
                       Icons.event_busy,
                       size: 64,
-                      color: Colors.white.withOpacity(0.5),
+                      color: Colors.white.withAlpha(128),
                     ),
                     const SizedBox(height: 16),
                     Text(
                       _buildEmptyMessage(),
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.5),
+                        color: Colors.white.withAlpha(128),
                         fontSize: 16,
                       ),
                     ),
@@ -996,8 +987,7 @@ class _HomeScreenState extends State<HomeScreen>
               }
             },
             onDelete: () async {
-              print(
-                  'Silme işlemi başladı: ${DateTime.now().millisecondsSinceEpoch}');
+              debugPrint('Silme işlemi başladı');
 
               // Önce local state'i güncelle
               setState(() {
@@ -1011,13 +1001,11 @@ class _HomeScreenState extends State<HomeScreen>
 
               // Ardından repository'yi güncelle
               await _eventRepository.deleteEvent(event.id);
-              print(
-                  'Repository silme işlemi bitti: ${DateTime.now().millisecondsSinceEpoch}');
+              debugPrint('Repository silme işlemi tamamlandı');
 
               // Son olarak listeyi güncelle
               _loadEvents();
-              print(
-                  'Liste güncellendi: ${DateTime.now().millisecondsSinceEpoch}');
+              debugPrint('Liste güncellendi');
             },
             onCompletedChanged: (value) async {
               final updatedEvent = Event(
