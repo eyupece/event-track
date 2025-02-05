@@ -27,7 +27,7 @@ class EventListItem extends StatelessWidget {
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
         decoration: BoxDecoration(
-          color: Colors.red.withOpacity(0.2),
+          color: Colors.red.withAlpha(51),
           borderRadius: BorderRadius.circular(16),
         ),
         child: const Icon(
@@ -42,14 +42,14 @@ class EventListItem extends StatelessWidget {
       },
       child: Card(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        color: event.isCompleted ?? false
-            ? Colors.green.withOpacity(0.05)
-            : Colors.white.withOpacity(0.1),
+        color: event.isCompleted
+            ? Colors.green.withAlpha(13)
+            : Colors.white.withAlpha(25),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: event.isCompleted ?? false
+          side: event.isCompleted
               ? BorderSide(
-                  color: Colors.green.withOpacity(0.3),
+                  color: Colors.green.withAlpha(76),
                   width: 1,
                 )
               : BorderSide.none,
@@ -59,7 +59,7 @@ class EventListItem extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           child: Stack(
             children: [
-              if (event.isCompleted ?? false)
+              if (event.isCompleted)
                 Positioned(
                   top: 8,
                   right: 8,
@@ -67,10 +67,10 @@ class EventListItem extends StatelessWidget {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
+                      color: Colors.green.withAlpha(25),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: Colors.green.withOpacity(0.2),
+                        color: Colors.green.withAlpha(51),
                         width: 1,
                       ),
                     ),
@@ -109,12 +109,12 @@ class EventListItem extends StatelessWidget {
                                 child: _buildHighlightedText(
                                   event.title,
                                   TextStyle(
-                                    color: event.isCompleted ?? false
+                                    color: event.isCompleted
                                         ? Colors.white60
                                         : Colors.white,
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
-                                    decoration: event.isCompleted ?? false
+                                    decoration: event.isCompleted
                                         ? TextDecoration.lineThrough
                                         : null,
                                   ),
@@ -127,11 +127,11 @@ class EventListItem extends StatelessWidget {
                             _buildHighlightedText(
                               event.description,
                               TextStyle(
-                                color: event.isCompleted ?? false
+                                color: event.isCompleted
                                     ? Colors.white38
                                     : Colors.white70,
                                 fontSize: 14,
-                                decoration: event.isCompleted ?? false
+                                decoration: event.isCompleted
                                     ? TextDecoration.lineThrough
                                     : null,
                               ),
@@ -146,7 +146,7 @@ class EventListItem extends StatelessWidget {
                                   vertical: 4,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: AppColors.accent.withOpacity(0.2),
+                                  color: AppColors.accent.withAlpha(51),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: _buildHighlightedText(
@@ -202,12 +202,12 @@ class EventListItem extends StatelessWidget {
                         width: 26,
                         height: 26,
                         decoration: BoxDecoration(
-                          color: event.isCompleted ?? false
-                              ? Colors.green.withOpacity(0.15)
+                          color: event.isCompleted
+                              ? Colors.green.withAlpha(38)
                               : Colors.transparent,
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: event.isCompleted ?? false
+                            color: event.isCompleted
                                 ? Colors.green
                                 : Colors.white38,
                             width: 2,
@@ -216,7 +216,7 @@ class EventListItem extends StatelessWidget {
                         child: Center(
                           child: AnimatedScale(
                             duration: const Duration(milliseconds: 200),
-                            scale: event.isCompleted ?? false ? 1 : 0,
+                            scale: event.isCompleted ? 1 : 0,
                             child: Container(
                               width: 12,
                               height: 12,
@@ -265,7 +265,7 @@ class EventListItem extends StatelessWidget {
         TextSpan(
           text: text.substring(index, index + matches.length),
           style: style.copyWith(
-            backgroundColor: Colors.yellowAccent.withOpacity(0.3),
+            backgroundColor: Colors.yellowAccent.withAlpha(76),
             color: Colors.yellowAccent,
             fontWeight: FontWeight.bold,
           ),

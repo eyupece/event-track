@@ -3,7 +3,6 @@ import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/models/event_model.dart';
-import '../widgets/success_animation_widget.dart';
 
 // Form validasyonları için sabitler
 const int _titleMaxLength = 50;
@@ -72,13 +71,11 @@ class _EventFormScreenState extends State<EventFormScreen> {
   final _descriptionController = TextEditingController();
   final _locationController = TextEditingController();
   final _notesController = TextEditingController();
-
-  late DateTime _selectedDate;
-  late TimeOfDay _selectedTime;
-  String? _selectedCategory;
+  DateTime _selectedDate = DateTime.now();
+  TimeOfDay _selectedTime = TimeOfDay.now();
+  String _selectedCategory = 'Konser';
   String? _titleError;
   String? _categoryError;
-  String? _dateError;
   bool _isLoading = false;
 
   bool get _isEditMode => widget.event != null;
@@ -117,7 +114,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
     if (_isEditMode) {
       // Düzenleme modunda form alanlarını doldur
       _titleController.text = widget.event!.title;
-      _descriptionController.text = widget.event!.description ?? '';
+      _descriptionController.text = widget.event!.description;
       _locationController.text = widget.event!.location ?? '';
       _notesController.text = widget.event!.notes ?? '';
       _selectedDate = widget.event!.date;
@@ -319,24 +316,18 @@ class _EventFormScreenState extends State<EventFormScreen> {
             ),
             child: Row(
               children: [
-                _selectedCategory != null
-                    ? Icon(
-                        _categories.firstWhere(
-                                (c) => c['name'] == _selectedCategory)['icon']
-                            as IconData,
-                        color: _categories.firstWhere(
-                                (c) => c['name'] == _selectedCategory)['color']
-                            as Color,
-                      )
-                    : const Icon(Icons.category_outlined,
-                        color: Colors.white70),
+                Icon(
+                  _categories.firstWhere(
+                          (c) => c['name'] == _selectedCategory)['icon']
+                      as IconData,
+                  color: _categories.firstWhere(
+                      (c) => c['name'] == _selectedCategory)['color'] as Color,
+                ),
                 const SizedBox(width: 12),
                 Text(
-                  _selectedCategory ?? 'Kategori Seçin',
-                  style: TextStyle(
-                    color: _selectedCategory != null
-                        ? Colors.white
-                        : Colors.white70,
+                  _selectedCategory,
+                  style: const TextStyle(
+                    color: Colors.white,
                   ),
                 ),
               ],
@@ -368,7 +359,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.2),
+                color: Colors.black.withAlpha(51),
                 blurRadius: 20,
                 offset: const Offset(0, 10),
               ),
@@ -529,7 +520,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.2),
+                color: Colors.black.withAlpha(51),
                 blurRadius: 20,
                 offset: const Offset(0, 10),
               ),
@@ -637,7 +628,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
       height: 150,
       width: 60,
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white.withAlpha(25),
         borderRadius: BorderRadius.circular(12),
       ),
       child: ListWheelScrollView.useDelegate(
@@ -685,7 +676,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.3),
+                color: Colors.white.withAlpha(76),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -727,7 +718,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
                       decoration: BoxDecoration(
                         color: isSelected
                             ? (category['color'] as Color)
-                            : (category['color'] as Color).withOpacity(0.2),
+                            : (category['color'] as Color).withAlpha(51),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
                           color: isSelected ? Colors.white : Colors.transparent,
@@ -783,7 +774,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
         description: _descriptionController.text.trim(),
         date: _selectedDate,
         time: _selectedTime,
-        category: _selectedCategory!,
+        category: _selectedCategory,
         location: _locationController.text.trim(),
         notes: _notesController.text.trim(),
         isCompleted: _isEditMode ? widget.event!.isCompleted : false,
@@ -815,100 +806,81 @@ class _EventFormScreenState extends State<EventFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
-        Navigator.of(context).pop();
-        return false;
-      },
-      child: Stack(
-        children: [
-          Scaffold(
-            backgroundColor: AppColors.primary,
-            appBar: AppBar(
-              title: Text(_isEditMode ? 'Etkinliği Düzenle' : 'Yeni Etkinlik'),
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new_rounded),
-                onPressed: () => Navigator.pop(context),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: _isLoading ? null : _submitForm,
-                  child: Text(
-                    _isEditMode ? 'Güncelle' : 'Kaydet',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            body: Form(
-              key: _formKey,
-              child: ListView(
-                padding: const EdgeInsets.all(16.0),
-                children: [
-                  Hero(
-                    tag: _isEditMode
-                        ? 'event_${widget.event!.id}'
-                        : 'addEventHero',
-                    child: Material(
-                      color: Colors.transparent,
-                      child: Column(
-                        children: [
-                          _buildTextField(
-                            controller: _titleController,
-                            label: 'Başlık',
-                            prefixIcon: Icons.title,
-                            errorText: _titleError,
-                            validator: EventFormValidator.validateTitle,
-                          ),
-                          const SizedBox(height: 16),
-                          _buildTextField(
-                            controller: _descriptionController,
-                            label: 'Açıklama',
-                            maxLines: 3,
-                            validator: EventFormValidator.validateDescription,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  _buildDateField(),
-                  const SizedBox(height: 16),
-                  _buildTimeField(),
-                  const SizedBox(height: 16),
-                  _buildCategoryDropdown(),
-                  const SizedBox(height: 16),
-                  _buildTextField(
-                    controller: _locationController,
-                    label: 'Konum',
-                    prefixIcon: Icons.location_on_outlined,
-                    validator: EventFormValidator.validateLocation,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildTextField(
-                    controller: _notesController,
-                    label: 'Notlar',
-                    maxLines: 3,
-                    validator: EventFormValidator.validateNotes,
-                  ),
-                  const SizedBox(height: 32),
-                ],
+    return Scaffold(
+      backgroundColor: AppColors.primary,
+      appBar: AppBar(
+        title: Text(_isEditMode ? 'Etkinliği Düzenle' : 'Yeni Etkinlik'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          onPressed: () => Navigator.pop(context),
+        ),
+        actions: [
+          TextButton(
+            onPressed: _isLoading ? null : _submitForm,
+            child: Text(
+              _isEditMode ? 'Güncelle' : 'Kaydet',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ),
-          if (_isLoading)
-            Container(
-              color: Colors.black54,
-              child: const Center(
-                child: CircularProgressIndicator(),
+        ],
+      ),
+      body: Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.all(16.0),
+          children: [
+            Hero(
+              tag: _isEditMode ? 'event_${widget.event!.id}' : 'addEventHero',
+              child: Material(
+                color: Colors.transparent,
+                child: Column(
+                  children: [
+                    _buildTextField(
+                      controller: _titleController,
+                      label: 'Başlık',
+                      prefixIcon: Icons.title,
+                      errorText: _titleError,
+                      validator: EventFormValidator.validateTitle,
+                    ),
+                    const SizedBox(height: 16),
+                    _buildTextField(
+                      controller: _descriptionController,
+                      label: 'Açıklama',
+                      maxLines: 3,
+                      validator: EventFormValidator.validateDescription,
+                    ),
+                  ],
+                ),
               ),
             ),
-        ],
+            const SizedBox(height: 16),
+            _buildDateField(),
+            const SizedBox(height: 16),
+            _buildTimeField(),
+            const SizedBox(height: 16),
+            _buildCategoryDropdown(),
+            const SizedBox(height: 16),
+            _buildTextField(
+              controller: _locationController,
+              label: 'Konum',
+              prefixIcon: Icons.location_on_outlined,
+              validator: EventFormValidator.validateLocation,
+            ),
+            const SizedBox(height: 16),
+            _buildTextField(
+              controller: _notesController,
+              label: 'Notlar',
+              maxLines: 3,
+              validator: EventFormValidator.validateNotes,
+            ),
+            const SizedBox(height: 32),
+          ],
+        ),
       ),
     );
   }
