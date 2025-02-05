@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/models/event_model.dart';
+import '../widgets/success_animation_widget.dart';
 
 // Form validasyonları için sabitler
 const int _titleMaxLength = 50;
@@ -767,11 +768,11 @@ class _EventFormScreenState extends State<EventFormScreen> {
   }
 
   Future<void> _submitForm() async {
-    if (!_validateForm()) {
-      return;
-    }
+    if (!_validateForm()) return;
 
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+    });
 
     try {
       final event = Event(
@@ -788,40 +789,27 @@ class _EventFormScreenState extends State<EventFormScreen> {
         isCompleted: _isEditMode ? widget.event!.isCompleted : false,
       );
 
-      // Simüle edilmiş gecikme (gerçek uygulamada kaldırılacak)
       await Future.delayed(const Duration(seconds: 1));
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_isEditMode
-              ? 'Etkinlik başarıyla güncellendi'
-              : 'Etkinlik başarıyla oluşturuldu'),
-          backgroundColor: Colors.green,
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.all(16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-        ),
-      );
+      setState(() {
+        _isLoading = false;
+      });
 
-      Navigator.pop(context, event);
+      if (mounted) {
+        Navigator.of(context).pop(event);
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_isEditMode
-              ? 'Etkinlik güncellenirken bir hata oluştu'
-              : 'Etkinlik oluşturulurken bir hata oluştu'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.all(16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
+      setState(() {
+        _isLoading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Bir hata oluştu. Lütfen tekrar deneyin.'),
+            backgroundColor: Colors.red,
           ),
-        ),
-      );
-    } finally {
-      setState(() => _isLoading = false);
+        );
+      }
     }
   }
 

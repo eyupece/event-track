@@ -7,6 +7,7 @@ import '../../data/repositories/event_repository.dart';
 import '../widgets/event_list_item.dart';
 import '../widgets/mini_calendar_widget.dart';
 import './event_detail_screen.dart';
+import '../widgets/success_animation_widget.dart';
 
 // Grafik çizimi için özel painter
 class ChartPainter extends CustomPainter {
@@ -135,6 +136,11 @@ class _HomeScreenState extends State<HomeScreen>
   bool? _isCompletedFilter;
   String? _dateFilter;
 
+  bool _showSuccessAnimation = false;
+
+  Event? _lastDeletedEvent;
+  int? _lastDeletedEventIndex;
+
   @override
   void initState() {
     super.initState();
@@ -147,6 +153,7 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Future<void> _loadEvents() async {
+    print('Liste yükleme başladı: ${DateTime.now().millisecondsSinceEpoch}');
     final events = await _eventRepository.getEvents();
     final eventsByDay = <DateTime, List<Event>>{};
 
@@ -163,10 +170,13 @@ class _HomeScreenState extends State<HomeScreen>
       eventsByDay[day]!.add(event);
     }
 
-    setState(() {
-      _events = events;
-      _eventsByDay = eventsByDay;
-    });
+    if (mounted) {
+      setState(() {
+        _events = events;
+        _eventsByDay = eventsByDay;
+      });
+    }
+    print('Liste yükleme bitti: ${DateTime.now().millisecondsSinceEpoch}');
   }
 
   void _onDaySelected(DateTime selectedDay) {
@@ -182,22 +192,67 @@ class _HomeScreenState extends State<HomeScreen>
     super.dispose();
   }
 
+  void _showAddSuccess() {
+    setState(() {
+      _showSuccessAnimation = true;
+    });
+
+    // 1.2 saniye sonra animasyonu kaldır
+    Future.delayed(const Duration(milliseconds: 1200), () {
+      if (mounted) {
+        setState(() {
+          _showSuccessAnimation = false;
+        });
+      }
+    });
+  }
+
+  Future<void> _addEvent() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const EventFormScreen(),
+      ),
+    );
+
+    if (result != null && mounted) {
+      // Etkinliği veritabanına ekle
+      await _eventRepository.addEvent(result);
+      // Listeyi güncelle
+      await _loadEvents();
+      // Başarı animasyonunu göster
+      _showAddSuccess();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.primary,
-      body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            _buildHeader(),
-            _buildSearchBar(),
-            _buildMiniCalendar(),
-            _buildCategoryGrid(),
-            _buildEventsList(),
-          ],
+    return Stack(
+      children: [
+        Scaffold(
+          backgroundColor: AppColors.primary,
+          body: SafeArea(
+            child: CustomScrollView(
+              slivers: [
+                _buildHeader(),
+                _buildSearchBar(),
+                _buildMiniCalendar(),
+                _buildCategoryGrid(),
+                _buildEventsList(),
+              ],
+            ),
+          ),
+          floatingActionButton: _buildFAB(),
         ),
-      ),
-      floatingActionButton: _buildFAB(),
+        if (_showSuccessAnimation)
+          SuccessAnimationWidget(
+            onAnimationComplete: () {
+              setState(() {
+                _showSuccessAnimation = false;
+              });
+            },
+          ),
+      ],
     );
   }
 
@@ -827,6 +882,72 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
+  void _showUndoSnackBar() {
+    print('Snackbar hazırlanıyor: ${DateTime.now().millisecondsSinceEpoch}');
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                const Icon(
+                  Icons.delete_outline,
+                  color: Colors.white70,
+                  size: 16,
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'Etkinlik silindi',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+            TextButton(
+              onPressed: () async {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                if (_lastDeletedEvent != null &&
+                    _lastDeletedEventIndex != null) {
+                  setState(() {
+                    _events.insert(_lastDeletedEventIndex!, _lastDeletedEvent!);
+                  });
+                  await _eventRepository.addEvent(_lastDeletedEvent!);
+                  _loadEvents();
+                  _lastDeletedEvent = null;
+                  _lastDeletedEventIndex = null;
+                }
+              },
+              style: TextButton.styleFrom(
+                padding: EdgeInsets.zero,
+                minimumSize: const Size(50, 24),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text(
+                'Geri Al',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.black.withOpacity(0.8),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.fixed,
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+        shape: const RoundedRectangleBorder(),
+        elevation: 0,
+      ),
+    );
+    print('Snackbar gösterildi: ${DateTime.now().millisecondsSinceEpoch}');
+  }
+
   Widget _buildEventsList() {
     final events = _filteredEvents;
 
@@ -871,12 +992,32 @@ class _HomeScreenState extends State<HomeScreen>
               );
               if (result != null) {
                 await _eventRepository.updateEvent(result);
-                _loadEvents(); // Etkinlik güncellendiğinde listeyi yenile
+                _loadEvents();
               }
             },
             onDelete: () async {
+              print(
+                  'Silme işlemi başladı: ${DateTime.now().millisecondsSinceEpoch}');
+
+              // Önce local state'i güncelle
+              setState(() {
+                _lastDeletedEvent = event;
+                _lastDeletedEventIndex = index;
+                _events.removeAt(index);
+              });
+
+              // Snackbar'ı hemen göster
+              _showUndoSnackBar();
+
+              // Ardından repository'yi güncelle
               await _eventRepository.deleteEvent(event.id);
+              print(
+                  'Repository silme işlemi bitti: ${DateTime.now().millisecondsSinceEpoch}');
+
+              // Son olarak listeyi güncelle
               _loadEvents();
+              print(
+                  'Liste güncellendi: ${DateTime.now().millisecondsSinceEpoch}');
             },
             onCompletedChanged: (value) async {
               final updatedEvent = Event(
@@ -948,32 +1089,7 @@ class _HomeScreenState extends State<HomeScreen>
       duration: const Duration(milliseconds: 300),
       turns: _fabAnimationController.value,
       child: FloatingActionButton.extended(
-        onPressed: () async {
-          _fabAnimationController.forward(from: 0);
-          final result = await Navigator.push<Event>(
-            context,
-            PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) =>
-                  const EventFormScreen(),
-              transitionsBuilder:
-                  (context, animation, secondaryAnimation, child) {
-                const begin = Offset(0.0, 1.0);
-                const end = Offset.zero;
-                const curve = Curves.easeInOutCubic;
-                var tween = Tween(begin: begin, end: end)
-                    .chain(CurveTween(curve: curve));
-                var offsetAnimation = animation.drive(tween);
-                return SlideTransition(position: offsetAnimation, child: child);
-              },
-              transitionDuration: const Duration(milliseconds: 500),
-            ),
-          );
-
-          if (result != null) {
-            await _eventRepository.addEvent(result);
-            _loadEvents();
-          }
-        },
+        onPressed: _addEvent,
         backgroundColor: Colors.white,
         icon: const Icon(
           Icons.add_rounded,
