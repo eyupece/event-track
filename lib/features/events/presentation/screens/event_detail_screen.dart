@@ -172,7 +172,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                 value: widget.event.location!,
               ),
             ],
-            if (widget.event.description?.isNotEmpty ?? false) ...[
+            if (widget.event.description.isNotEmpty ?? false) ...[
               const SizedBox(height: 24),
               const Text(
                 'Açıklama',
@@ -184,7 +184,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                widget.event.description!,
+                widget.event.description,
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 16,
@@ -286,14 +286,6 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                           ),
                         ],
                       ),
-                    ),
-                    // İkon
-                    Icon(
-                      _isCompleted
-                          ? Icons.task_alt_rounded
-                          : Icons.radio_button_unchecked_rounded,
-                      color: _isCompleted ? Colors.green : Colors.white54,
-                      size: 24,
                     ),
                   ],
                 ),

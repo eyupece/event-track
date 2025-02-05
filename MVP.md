@@ -1,7 +1,7 @@
 # Etkinlik Takip Uygulaması MVP Dokümanı
 
-Versiyon: 0.2.1
-Son Güncelleme: [04.02.2024]
+Versiyon: 0.2.2
+Son Güncelleme: [05.02.2024]
 
 ## 1. Proje Özeti
 Kullanıcıların etkinliklerini kategorize edip takip edebileceği, takvim üzerinden yönetebileceği ve etkinliklere not/fotoğraf ekleyebileceği bir mobil uygulama.
@@ -51,6 +51,12 @@ Kullanıcıların etkinliklerini kategorize edip takip edebileceği, takvim üze
   - Tek form yapısı
   - Otomatik değer doldurma
   - Hero animasyonları
+- Etkinlik Silme ve Geri Alma
+  - Native tasarımlı bottom snackbar
+  - Anlık görsel geri bildirim
+  - Optimize edilmiş silme işlemi
+  - Kolay geri alma özelliği
+  - Performans optimizasyonu
 
 ### Geliştirme Aşamasında (🚧)
 - Etkinlik ekleme formu
@@ -170,3 +176,8 @@ Kullanıcıların etkinliklerini kategorize edip takip edebileceği, takvim üze
   - Form validasyonları ve karakter limitleri korundu
   - Düzenleme modunda mevcut değerler otomatik dolduruluyor
   - Hero animasyonu ile geçiş efektleri eklendi
+- 05.02.2024: Etkinlik silme sistemi iyileştirildi
+  - Bottom snackbar tasarımı eklendi
+  - Silme işlemi optimize edildi
+  - Geri alma özelliği eklendi
+  - Performans iyileştirmeleri yapıldı
