@@ -1,6 +1,6 @@
 # Etkinlik Takip Uygulaması MVP Dokümanı
 
-Versiyon: 0.2.2
+Versiyon: 0.2.3
 Son Güncelleme: [05.02.2024]
 
 ## 1. Proje Özeti
@@ -20,55 +20,95 @@ Kullanıcıların etkinliklerini kategorize edip takip edebileceği, takvim üze
     - Durum filtreleri (Tamamlanan/Bekleyen)
     - Tarih filtreleri (Bugün/Hafta/Ay)
     - Görsel iyileştirmeler ve kullanıcı deneyimi
+  - Etkinlik detay sayfası
+  - Etkinlik düzenleme sayfası
 - Form Validasyonları
   - Karakter limitleri (Başlık: 50, Açıklama: 500, Konum: 50, Notlar: 500)
   - Anlık form validasyonu
   - Karakter sayacı gösterimi
   - Loading state
   - Türkçe hata mesajları
+  - Form temizleme ve sıfırlama
 - Takvim entegrasyonu
   - Aylık/haftalık görünüm
   - Türkçe dil desteği
   - Pazartesiden başlayan hafta görünümü
   - Mini takvim görünümü
+  - Etkinlik tarihi seçimi
+  - Tarih formatı düzenlemeleri
 - Clean Architecture yapısı
   - Core katmanı
   - Features katmanı
   - Shared katmanı
+  - Repository pattern implementasyonu
 - Ana Ekran Özellikleri
   - Kişiselleştirilmiş karşılama mesajı
   - Etkinlik arama çubuğu
   - Kategori kartları
   - Etkinlik listesi
   - Tamamlanan/Bekleyen istatistikleri
+  - Performans optimizasyonları
 - Etkinlik Tamamlanma Sistemi
   - Modern checkbox tasarımı
   - Animasyonlu geçişler
   - Özel görsel efektler
   - Tamamlanma durumu göstergeleri
   - Yeşil tema renkleri ve etiketler
+  - Tamamlanma tarihi kaydı
 - Etkinlik Düzenleme
   - Tek form yapısı
   - Otomatik değer doldurma
   - Hero animasyonları
+  - Form validasyonları
+  - Düzenleme geçmişi
 - Etkinlik Silme ve Geri Alma
   - Native tasarımlı bottom snackbar
   - Anlık görsel geri bildirim
   - Optimize edilmiş silme işlemi
   - Kolay geri alma özelliği
   - Performans optimizasyonu
+  - Silme onayı dialogu
 
 ### Geliştirme Aşamasında (🚧)
-- Etkinlik ekleme formu
-- Kategori sistemi
 - State management (Riverpod)
-- Veri modeli ve repository pattern
+  - Provider yapılandırması
+  - State yönetimi
+  - Dependency injection
+- Kategori sistemi
+  - Kategori oluşturma
+  - Kategori düzenleme
+  - Kategori silme
+  - Kategori filtreleme
+- Local storage (Hive)
+  - Veri modeli adaptörleri
+  - CRUD operasyonları
+  - Veri migrasyonu
+- Bildirim sistemi
+  - Local bildirimler
+  - Hatırlatıcılar
+  - Bildirim yönetimi
 
 ### Planlanmış (⏳)
-- Local storage (Hive)
 - Not ve fotoğraf ekleme
-- Bildirim sistemi
+  - Markdown desteği
+  - Çoklu fotoğraf desteği
+  - Fotoğraf önizleme
 - Test kapsamı
+  - Unit testler
+  - Widget testler
+  - Integration testler
+- Performans iyileştirmeleri
+  - Lazy loading
+  - Caching mekanizmaları
+  - Asset optimizasyonu
+- Kullanıcı deneyimi geliştirmeleri
+  - Onboarding ekranları
+  - Tooltip'ler
+  - Kullanım kılavuzu
+- Veri yedekleme ve senkronizasyon
+  - Cloud storage entegrasyonu
+  - Otomatik yedekleme
+  - Senkronizasyon ayarları
 
 ## 3. Temel Özellikler
 
@@ -149,35 +189,13 @@ Kullanıcıların etkinliklerini kategorize edip takip edebileceği, takvim üze
 - Etkilnik ekleye basılınca çıkan ve takvimde bir iki ui güncellemesi unutma
 
 ## 8. Güncellemeler
-- 04.02.2024: Filtreleme arayüzü iyileştirildi
-  - Filtreler arası boşluklar optimize edildi
-  - Seçili olmayan filtrelerin görünümü iyileştirildi
-  - Tema renkleriyle uyum sağlandı
-- 03.02.2024: Modern UI ve takvim entegrasyonu tamamlandı
-- 03.02.2024: MVP dokümanı güncellendi
-- 03.02.2024: Clean Architecture yapısı oluşturuldu
-- 03.02.2024: Ana ekran tasarımı yenilendi
-  - İlerleme kartı ve istatistikler eklendi
-  - Özel takvim seçici eklendi
-  - Kategori kartları güncellendi
-  - Etkinlik listesi tasarımı iyileştirildi
-- 04.02.2024: Form validasyonları ve karakter limitleri eklendi
-  - Tüm form alanları için karakter limitleri tanımlandı
-  - Anlık validasyon ve karakter sayacı eklendi
-  - Loading state ve kullanıcı geri bildirimleri iyileştirildi
+- 05.02.2024: MVP.md güncellendi
+  - Tamamlanan özellikler detaylandırıldı
+  - Yeni geliştirme aşamaları eklendi
+  - Planlanmış özellikler güncellendi
 - 05.02.2024: Etkinlik Tamamlanma Sistemi İyileştirildi
   - Modern, yuvarlak checkbox tasarımı eklendi
   - Tamamlanan etkinlikler için özel görsel efektler eklendi
   - Animasyonlu geçişler ve kullanıcı deneyimi iyileştirildi
   - Tamamlanan etkinlikler için yeşil tema renkleri ve özel etiket eklendi
   - Liste görünümünde tamamlanma durumu göstergeleri eklendi
-- 05.02.2024: AddEventScreen → EventFormScreen dönüşümü tamamlandı
-  - Tek form üzerinden hem ekleme hem düzenleme yapılabilir hale getirildi
-  - Form validasyonları ve karakter limitleri korundu
-  - Düzenleme modunda mevcut değerler otomatik dolduruluyor
-  - Hero animasyonu ile geçiş efektleri eklendi
-- 05.02.2024: Etkinlik silme sistemi iyileştirildi
-  - Bottom snackbar tasarımı eklendi
-  - Silme işlemi optimize edildi
-  - Geri alma özelliği eklendi
-  - Performans iyileştirmeleri yapıldı
