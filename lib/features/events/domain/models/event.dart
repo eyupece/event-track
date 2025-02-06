@@ -7,6 +7,8 @@ class Event {
   final String? description;
   final List<String> photoUrls;
   final List<String> notes;
+  final bool isCompleted;
+  final DateTime? time;
 
   Event({
     required this.id,
@@ -17,6 +19,8 @@ class Event {
     this.description,
     this.photoUrls = const [],
     this.notes = const [],
+    this.isCompleted = false,
+    this.time,
   });
 
   // JSON serialization
@@ -30,6 +34,8 @@ class Event {
       'description': description,
       'photoUrls': photoUrls,
       'notes': notes,
+      'isCompleted': isCompleted,
+      'time': time?.toIso8601String(),
     };
   }
 
@@ -44,6 +50,9 @@ class Event {
       description: json['description'] as String?,
       photoUrls: List<String>.from(json['photoUrls'] ?? []),
       notes: List<String>.from(json['notes'] ?? []),
+      isCompleted: json['isCompleted'] as bool? ?? false,
+      time:
+          json['time'] != null ? DateTime.parse(json['time'] as String) : null,
     );
   }
 
@@ -57,6 +66,8 @@ class Event {
     String? description,
     List<String>? photoUrls,
     List<String>? notes,
+    bool? isCompleted,
+    DateTime? time,
   }) {
     return Event(
       id: id ?? this.id,
@@ -67,6 +78,8 @@ class Event {
       description: description ?? this.description,
       photoUrls: photoUrls ?? this.photoUrls,
       notes: notes ?? this.notes,
+      isCompleted: isCompleted ?? this.isCompleted,
+      time: time ?? this.time,
     );
   }
 }

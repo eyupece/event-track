@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import './event_form_screen.dart';
-import '../../domain/models/event_model.dart';
-import '../../data/repositories/event_repository.dart';
+import '../../domain/models/event.dart';
 import '../widgets/event_list_item.dart';
 import '../widgets/mini_calendar_widget.dart';
 import './event_detail_screen.dart';
 import '../widgets/success_animation_widget.dart';
+import '../../data/providers/event_provider.dart';
 
 // Grafik çizimi için özel painter
 class ChartPainter extends CustomPainter {
@@ -75,21 +76,21 @@ class ChartPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen>
+class _HomeScreenState extends ConsumerState<HomeScreen>
     with SingleTickerProviderStateMixin {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
   late AnimationController _fabAnimationController;
   String? _selectedCategory;
-  // Kullanıcı adı SharedPreferences'dan alınacak ve profil sayfasından düzenlenebilir olacak
   final String userName = "Eyüp";
+  Map<DateTime, List<Event>> _eventsByDay = {};
 
   static const List<Map<String, dynamic>> _categories = [
     {
@@ -124,19 +125,10 @@ class _HomeScreenState extends State<HomeScreen>
     },
   ];
 
-  final EventRepository _eventRepository = EventRepository();
-  List<Event> _events = [];
-  Map<DateTime, List<Event>> _eventsByDay = {};
-
   String _searchQuery = '';
-  bool _isSearching = false;
-
-  // Filtre seçenekleri
   bool? _isCompletedFilter;
   String? _dateFilter;
-
   bool _showSuccessAnimation = false;
-
   Event? _lastDeletedEvent;
   int? _lastDeletedEventIndex;
 
@@ -148,34 +140,6 @@ class _HomeScreenState extends State<HomeScreen>
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
-    _loadEvents();
-  }
-
-  Future<void> _loadEvents() async {
-    debugPrint('Liste yükleme başladı');
-    final events = await _eventRepository.getEvents();
-    final eventsByDay = <DateTime, List<Event>>{};
-
-    for (var event in events) {
-      final day = DateTime(
-        event.date.year,
-        event.date.month,
-        event.date.day,
-      );
-
-      if (eventsByDay[day] == null) {
-        eventsByDay[day] = [];
-      }
-      eventsByDay[day]!.add(event);
-    }
-
-    if (mounted) {
-      setState(() {
-        _events = events;
-        _eventsByDay = eventsByDay;
-      });
-    }
-    debugPrint('Liste yükleme tamamlandı');
   }
 
   void _onDaySelected(DateTime selectedDay) {
@@ -196,7 +160,6 @@ class _HomeScreenState extends State<HomeScreen>
       _showSuccessAnimation = true;
     });
 
-    // 1.2 saniye sonra animasyonu kaldır
     Future.delayed(const Duration(milliseconds: 1200), () {
       if (mounted) {
         setState(() {
@@ -215,17 +178,99 @@ class _HomeScreenState extends State<HomeScreen>
     );
 
     if (result != null && mounted) {
-      // Etkinliği veritabanına ekle
-      await _eventRepository.addEvent(result);
-      // Listeyi güncelle
-      await _loadEvents();
-      // Başarı animasyonunu göster
+      ref.read(eventProvider.notifier).addEvent(result);
       _showAddSuccess();
     }
   }
 
+  // Filtrelenmiş etkinlikleri döndüren getter
+  List<Event> get _filteredEvents {
+    final events = ref.read(eventProvider);
+    var filteredList = List<Event>.from(events);
+
+    // Kategori filtresi
+    if (_selectedCategory != null) {
+      filteredList = filteredList
+          .where((event) => event.category == _selectedCategory)
+          .toList();
+    }
+
+    // Tamamlanma durumu filtresi
+    if (_isCompletedFilter != null) {
+      filteredList = filteredList
+          .where((event) => event.isCompleted == _isCompletedFilter)
+          .toList();
+    }
+
+    // Tarih filtresi
+    if (_dateFilter != null) {
+      final now = DateTime.now();
+      switch (_dateFilter) {
+        case 'today':
+          filteredList = filteredList
+              .where((event) =>
+                  event.date.year == now.year &&
+                  event.date.month == now.month &&
+                  event.date.day == now.day)
+              .toList();
+          break;
+        case 'week':
+          final weekStart = now.subtract(Duration(days: now.weekday - 1));
+          final weekEnd = weekStart.add(const Duration(days: 7));
+          filteredList = filteredList
+              .where((event) =>
+                  event.date.isAfter(weekStart) && event.date.isBefore(weekEnd))
+              .toList();
+          break;
+        case 'month':
+          filteredList = filteredList
+              .where((event) =>
+                  event.date.year == now.year && event.date.month == now.month)
+              .toList();
+          break;
+      }
+    }
+
+    // Arama filtresi
+    if (_searchQuery.isNotEmpty) {
+      final query = _searchQuery.toLowerCase();
+      filteredList = filteredList
+          .where((event) =>
+              event.title.toLowerCase().contains(query) ||
+              (event.description?.toLowerCase().contains(query) ?? false) ||
+              (event.location?.toLowerCase().contains(query) ?? false))
+          .toList();
+    }
+
+    return filteredList;
+  }
+
+  void _updateEventsByDay() {
+    final events = ref.read(eventProvider);
+    final newEventsByDay = <DateTime, List<Event>>{};
+
+    for (var event in events) {
+      final day = DateTime(
+        event.date.year,
+        event.date.month,
+        event.date.day,
+      );
+
+      if (newEventsByDay[day] == null) {
+        newEventsByDay[day] = [];
+      }
+      newEventsByDay[day]!.add(event);
+    }
+
+    setState(() {
+      _eventsByDay = newEventsByDay;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    _updateEventsByDay();
+
     return Stack(
       children: [
         Scaffold(
@@ -258,50 +303,25 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _buildHeader() {
     return SliverToBoxAdapter(
       child: Padding(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Merhaba!',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      userName,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                  ),
-                  child: const CircleAvatar(
-                    radius: 24,
-                    backgroundColor: Colors.white24,
-                    child: Icon(
-                      Icons.person_outline,
-                      color: Colors.white,
-                      size: 30,
-                    ),
-                  ),
-                ),
-              ],
+            Text(
+              'Merhaba, $userName',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Etkinliklerini takip et',
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 16,
+              ),
             ),
           ],
         ),
@@ -312,91 +332,24 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _buildSearchBar() {
     return SliverToBoxAdapter(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20.0),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: Colors.white.withAlpha(25),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            children: [
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 200),
-                child: _isSearching
-                    ? IconButton(
-                        icon: const Icon(
-                          Icons.arrow_back,
-                          color: Colors.white70,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _searchQuery = '';
-                            _isSearching = false;
-                          });
-                        },
-                      )
-                    : const Icon(
-                        Icons.search,
-                        color: Colors.white70,
-                      ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: TextField(
-                  style: const TextStyle(color: Colors.white),
-                  decoration: const InputDecoration(
-                    hintText: 'Başlık, açıklama veya konum ara...',
-                    hintStyle: TextStyle(color: Colors.white60),
-                    border: InputBorder.none,
-                  ),
-                  onChanged: (value) {
-                    setState(() {
-                      _searchQuery = value;
-                      _isSearching = value.isNotEmpty;
-                    });
-                  },
-                ),
-              ),
-              if (_isSearching)
-                IconButton(
-                  icon: const Icon(
-                    Icons.clear,
-                    color: Colors.white70,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _searchQuery = '';
-                      _isSearching = false;
-                    });
-                  },
-                )
-              else
-                Stack(
-                  children: [
-                    IconButton(
-                      icon: const Icon(
-                        Icons.tune,
-                        color: Colors.white70,
-                      ),
-                      onPressed: _showFilterDialog,
-                    ),
-                    if (_isCompletedFilter != null || _dateFilter != null)
-                      Positioned(
-                        right: 8,
-                        top: 8,
-                        child: Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: Colors.orangeAccent,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-            ],
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: TextField(
+          onChanged: (value) {
+            setState(() {
+              _searchQuery = value;
+            });
+          },
+          style: const TextStyle(color: Colors.white),
+          decoration: InputDecoration(
+            hintText: 'Etkinlik ara...',
+            hintStyle: const TextStyle(color: Colors.white60),
+            prefixIcon: const Icon(Icons.search, color: Colors.white60),
+            filled: true,
+            fillColor: Colors.white.withAlpha(25),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
           ),
         ),
       ),
@@ -404,573 +357,102 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Widget _buildMiniCalendar() {
-    final now = DateTime.now();
-    final startOfDay = DateTime(now.year, now.month, now.day);
-    final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
-
-    // Filtrelenmiş etkinlikler
-    final filteredEvents = _filteredEvents;
-
-    // Tamamlanma durumuna göre hesaplama
-    final completedEvents = filteredEvents.where((e) => e.isCompleted).length;
-    final pendingEvents = filteredEvents.where((e) => !e.isCompleted).length;
-
-    // Günlük etkinlikler (bugün)
-    final dailyEvents = filteredEvents
-        .where((e) =>
-            e.date.isAfter(startOfDay.subtract(const Duration(days: 1))) &&
-            e.date.isBefore(startOfDay.add(const Duration(days: 1))))
-        .length;
-
-    // Haftalık etkinlikler (bu hafta)
-    final weeklyEvents = filteredEvents
-        .where((e) =>
-            e.date.isAfter(startOfWeek.subtract(const Duration(days: 1))) &&
-            e.date.isBefore(startOfWeek.add(const Duration(days: 7))))
-        .length;
-
     return SliverToBoxAdapter(
-      child: MiniCalendarWidget(
-        focusedDay: _focusedDay,
-        selectedDay: _selectedDay,
-        onDaySelected: _onDaySelected,
-        events: _eventsByDay,
-        completedEvents: completedEvents,
-        pendingEvents: pendingEvents,
-        dailyEvents: dailyEvents,
-        weeklyEvents: weeklyEvents,
-        selectedCategory: _selectedCategory,
-      ),
-    );
-  }
-
-  // Filtrelenmiş etkinlikleri döndüren getter
-  List<Event> get _filteredEvents {
-    List<Event> events = _events;
-
-    // Kategori filtresi
-    if (_selectedCategory != null) {
-      events =
-          events.where((event) => event.category == _selectedCategory).toList();
-    }
-
-    // Tamamlanma durumu filtresi
-    if (_isCompletedFilter != null) {
-      events = events
-          .where((event) => event.isCompleted == _isCompletedFilter)
-          .toList();
-    }
-
-    // Tarih filtresi
-    if (_dateFilter != null) {
-      final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day);
-
-      switch (_dateFilter) {
-        case 'today':
-          events = events
-              .where((event) =>
-                  event.date.year == today.year &&
-                  event.date.month == today.month &&
-                  event.date.day == today.day)
-              .toList();
-          break;
-        case 'week':
-          final startOfWeek = today.subtract(Duration(days: today.weekday - 1));
-          final endOfWeek = startOfWeek.add(const Duration(days: 7));
-          events = events
-              .where((event) =>
-                  event.date
-                      .isAfter(startOfWeek.subtract(const Duration(days: 1))) &&
-                  event.date.isBefore(endOfWeek))
-              .toList();
-          break;
-        case 'month':
-          events = events
-              .where((event) =>
-                  event.date.year == today.year &&
-                  event.date.month == today.month)
-              .toList();
-          break;
-      }
-    }
-
-    // Arama filtresi
-    if (_searchQuery.isNotEmpty) {
-      final query = _searchQuery.toLowerCase();
-      events = events.where((event) {
-        return event.title.toLowerCase().contains(query) ||
-            event.description.toLowerCase().contains(query) ||
-            (event.location?.toLowerCase().contains(query) ?? false);
-      }).toList();
-    }
-
-    // Tarihe göre sıralama (varsayılan)
-    events.sort((a, b) => a.date.compareTo(b.date));
-
-    return events;
-  }
-
-  void _showFilterDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => Dialog(
-          backgroundColor: Colors.transparent,
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppColors.primary,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white24),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Filtrele',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                const Text(
-                  'Durum',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: [
-                    FilterChip(
-                      label: const Text('Tümü'),
-                      selected: _isCompletedFilter == null,
-                      onSelected: (selected) {
-                        setState(() => _isCompletedFilter = null);
-                      },
-                      backgroundColor: Colors.white.withAlpha(25),
-                      selectedColor: AppColors.accent,
-                      checkmarkColor: Colors.white,
-                      labelStyle: TextStyle(
-                        color: _isCompletedFilter == null
-                            ? Colors.white
-                            : AppColors.primary,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    FilterChip(
-                      label: const Text('Tamamlanan'),
-                      selected: _isCompletedFilter == true,
-                      onSelected: (selected) {
-                        setState(
-                            () => _isCompletedFilter = selected ? true : null);
-                      },
-                      backgroundColor: Colors.white.withAlpha(25),
-                      selectedColor: const Color(0xFF4CAF50),
-                      checkmarkColor: Colors.white,
-                      labelStyle: TextStyle(
-                        color: _isCompletedFilter == true
-                            ? Colors.white
-                            : AppColors.primary,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    FilterChip(
-                      label: const Text('Bekleyen'),
-                      selected: _isCompletedFilter == false,
-                      onSelected: (selected) {
-                        setState(
-                            () => _isCompletedFilter = selected ? false : null);
-                      },
-                      backgroundColor: Colors.white.withAlpha(25),
-                      selectedColor: const Color(0xFFFF9800),
-                      checkmarkColor: Colors.white,
-                      labelStyle: TextStyle(
-                        color: _isCompletedFilter == false
-                            ? Colors.white
-                            : AppColors.primary,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Tarih',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: [
-                    FilterChip(
-                      label: const Text('Tümü'),
-                      selected: _dateFilter == null,
-                      onSelected: (selected) {
-                        setState(() => _dateFilter = null);
-                      },
-                      backgroundColor: Colors.white.withAlpha(25),
-                      selectedColor: AppColors.accent,
-                      checkmarkColor: Colors.white,
-                      labelStyle: TextStyle(
-                        color: _dateFilter == null
-                            ? Colors.white
-                            : AppColors.primary,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    FilterChip(
-                      label: const Text('Bugün'),
-                      selected: _dateFilter == 'today',
-                      onSelected: (selected) {
-                        setState(() => _dateFilter = selected ? 'today' : null);
-                      },
-                      backgroundColor: Colors.white.withAlpha(25),
-                      selectedColor: const Color(0xFF2196F3),
-                      checkmarkColor: Colors.white,
-                      labelStyle: TextStyle(
-                        color: _dateFilter == 'today'
-                            ? Colors.white
-                            : AppColors.primary,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    FilterChip(
-                      label: const Text('Bu Hafta'),
-                      selected: _dateFilter == 'week',
-                      onSelected: (selected) {
-                        setState(() => _dateFilter = selected ? 'week' : null);
-                      },
-                      backgroundColor: Colors.white.withAlpha(25),
-                      selectedColor: const Color(0xFF9C27B0),
-                      checkmarkColor: Colors.white,
-                      labelStyle: TextStyle(
-                        color: _dateFilter == 'week'
-                            ? Colors.white
-                            : AppColors.primary,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    FilterChip(
-                      label: const Text('Bu Ay'),
-                      selected: _dateFilter == 'month',
-                      onSelected: (selected) {
-                        setState(() => _dateFilter = selected ? 'month' : null);
-                      },
-                      backgroundColor: Colors.white.withAlpha(25),
-                      selectedColor: const Color(0xFFE91E63),
-                      checkmarkColor: Colors.white,
-                      labelStyle: TextStyle(
-                        color: _dateFilter == 'month'
-                            ? Colors.white
-                            : AppColors.primary,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () {
-                        setState(() {
-                          _isCompletedFilter = null;
-                          _dateFilter = null;
-                        });
-                      },
-                      child: const Text(
-                        'Sıfırla',
-                        style: TextStyle(color: Colors.white70),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    ElevatedButton(
-                      onPressed: () {
-                        this.setState(() {}); // Ana ekranı güncelle
-                        Navigator.pop(context);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.accent,
-                      ),
-                      child: const Text('Uygula'),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: MiniCalendarWidget(
+          selectedDay: _selectedDay,
+          focusedDay: _focusedDay,
+          onDaySelected: _onDaySelected,
+          events: _eventsByDay,
         ),
       ),
     );
   }
 
   Widget _buildCategoryGrid() {
-    return SliverToBoxAdapter(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Kategoriler',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                if (_selectedCategory != null)
-                  TextButton.icon(
-                    onPressed: () {
-                      setState(() {
-                        _selectedCategory = null;
-                      });
-                    },
-                    icon: const Icon(
-                      Icons.filter_alt_off,
-                      color: Colors.white70,
-                      size: 20,
-                    ),
-                    label: const Text(
-                      'Filtreyi Kaldır',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          SizedBox(
-            height: 140,
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              scrollDirection: Axis.horizontal,
-              itemCount: _categories.length + 1,
-              itemBuilder: (context, index) {
-                if (index == _categories.length) {
-                  return _buildAddCategoryCard();
-                }
-                return _buildCategoryCard(_categories[index]);
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCategoryCard(Map<String, dynamic> category) {
-    final isSelected = category['name'] == _selectedCategory;
-
-    return Container(
-      width: 120,
-      margin: const EdgeInsets.all(4),
-      child: Card(
-        color: isSelected ? Colors.white : category['color'],
-        elevation: isSelected ? 8 : 4,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+    return SliverPadding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      sliver: SliverGrid(
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          mainAxisSpacing: 16,
+          crossAxisSpacing: 16,
+          childAspectRatio: 1.5,
         ),
-        child: InkWell(
-          onTap: () {
-            setState(() {
-              _selectedCategory = isSelected ? null : category['name'];
-            });
-          },
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Icon(
-                  category['icon'],
-                  color: isSelected ? category['color'] : Colors.white,
-                  size: 32,
-                ),
-                const Spacer(),
-                Text(
-                  category['name'],
-                  style: TextStyle(
-                    color: isSelected ? category['color'] : Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${_events.where((e) => e.category == category['name']).length} Etkinlik',
-                  style: TextStyle(
+        delegate: SliverChildBuilderDelegate(
+          (context, index) {
+            final category = _categories[index];
+            final isSelected = category['name'] == _selectedCategory;
+
+            return GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectedCategory =
+                      isSelected ? null : category['name'] as String;
+                });
+              },
+              child: Container(
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? (category['color'] as Color).withAlpha(51)
+                      : Colors.white.withAlpha(25),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
                     color: isSelected
-                        ? category['color'].withAlpha(200)
-                        : Colors.white70,
-                    fontSize: 12,
+                        ? category['color'] as Color
+                        : Colors.transparent,
+                    width: 2,
                   ),
                 ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAddCategoryCard() {
-    return Container(
-      width: 120,
-      margin: const EdgeInsets.all(4),
-      child: Card(
-        color: Colors.white.withAlpha(25),
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: Colors.white24),
-        ),
-        child: InkWell(
-          onTap: () {
-            // Kategori ekleme modalı gösterilecek ve yeni kategori repository'e kaydedilecek
-          },
-          borderRadius: BorderRadius.circular(16),
-          child: const Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.add_circle_outline,
-                color: Colors.white70,
-                size: 32,
-              ),
-              SizedBox(height: 8),
-              Text(
-                'Yeni\nKategori',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 14,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showUndoSnackBar() {
-    debugPrint('Snackbar hazırlanıyor');
-    ScaffoldMessenger.of(context).clearSnackBars();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Row(
-              children: [
-                Icon(
-                  Icons.delete_outline,
-                  color: Colors.white70,
-                  size: 16,
-                ),
-                SizedBox(width: 8),
-                Text(
-                  'Etkinlik silindi',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-            ),
-            TextButton(
-              onPressed: () async {
-                ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                if (_lastDeletedEvent != null &&
-                    _lastDeletedEventIndex != null) {
-                  setState(() {
-                    _events.insert(_lastDeletedEventIndex!, _lastDeletedEvent!);
-                  });
-                  await _eventRepository.addEvent(_lastDeletedEvent!);
-                  _loadEvents();
-                  _lastDeletedEvent = null;
-                  _lastDeletedEventIndex = null;
-                }
-              },
-              style: TextButton.styleFrom(
-                padding: EdgeInsets.zero,
-                minimumSize: const Size(50, 24),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: const Text(
-                'Geri Al',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: Colors.black.withAlpha(204),
-        duration: const Duration(seconds: 2),
-        behavior: SnackBarBehavior.fixed,
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-        shape: const RoundedRectangleBorder(),
-        elevation: 0,
-      ),
-    );
-  }
-
-  Widget _buildEventsList() {
-    final events = _filteredEvents;
-
-    return SliverList(
-      delegate: SliverChildBuilderDelegate(
-        (context, index) {
-          if (events.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32.0),
                 child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(
-                      Icons.event_busy,
-                      size: 64,
-                      color: Colors.white.withAlpha(128),
+                      category['icon'] as IconData,
+                      color: isSelected
+                          ? category['color'] as Color
+                          : Colors.white,
+                      size: 32,
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 8),
                     Text(
-                      _buildEmptyMessage(),
+                      category['name'] as String,
                       style: TextStyle(
-                        color: Colors.white.withAlpha(128),
-                        fontSize: 16,
+                        color: isSelected
+                            ? category['color'] as Color
+                            : Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${_filteredEvents.where((e) => e.category == category['name']).length} Etkinlik',
+                      style: TextStyle(
+                        color: isSelected
+                            ? (category['color'] as Color).withAlpha(179)
+                            : Colors.white70,
+                        fontSize: 12,
                       ),
                     ),
                   ],
                 ),
               ),
             );
-          }
+          },
+          childCount: _categories.length,
+        ),
+      ),
+    );
+  }
 
-          final event = events[index];
+  Widget _buildEventsList() {
+    final filteredEvents = _filteredEvents;
+
+    return SliverList(
+      delegate: SliverChildBuilderDelegate(
+        (context, index) {
+          final event = filteredEvents[index];
           return EventListItem(
             event: event,
             searchQuery: _searchQuery,
@@ -982,117 +464,55 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               );
               if (result != null) {
-                await _eventRepository.updateEvent(result);
-                _loadEvents();
+                ref.read(eventProvider.notifier).updateEvent(result);
+                _updateEventsByDay();
               }
             },
-            onDelete: () async {
-              debugPrint('Silme işlemi başladı');
-
-              // Önce local state'i güncelle
-              setState(() {
-                _lastDeletedEvent = event;
-                _lastDeletedEventIndex = index;
-                _events.removeAt(index);
-              });
-
-              // Snackbar'ı hemen göster
+            onDelete: () {
+              _lastDeletedEvent = event;
+              _lastDeletedEventIndex = index;
+              ref.read(eventProvider.notifier).deleteEvent(event.id);
               _showUndoSnackBar();
-
-              // Ardından repository'yi güncelle
-              await _eventRepository.deleteEvent(event.id);
-              debugPrint('Repository silme işlemi tamamlandı');
-
-              // Son olarak listeyi güncelle
-              _loadEvents();
-              debugPrint('Liste güncellendi');
+              _updateEventsByDay();
             },
-            onCompletedChanged: (value) async {
-              final updatedEvent = Event(
-                id: event.id,
-                title: event.title,
-                description: event.description,
-                date: event.date,
-                time: event.time,
-                category: event.category,
-                location: event.location,
-                notes: event.notes,
+            onCompletedChanged: (value) {
+              final updatedEvent = event.copyWith(
                 isCompleted: value,
               );
-              await _eventRepository.updateEvent(updatedEvent);
-              _loadEvents();
+              ref.read(eventProvider.notifier).updateEvent(updatedEvent);
+              _updateEventsByDay();
             },
           );
         },
-        childCount: events.isEmpty ? 1 : events.length,
+        childCount: filteredEvents.length,
       ),
     );
   }
 
-  String _buildEmptyMessage() {
-    final List<String> filters = [];
-
-    if (_searchQuery.isNotEmpty) {
-      filters.add('"$_searchQuery" araması');
-    }
-
-    if (_selectedCategory != null) {
-      filters.add('$_selectedCategory kategorisi');
-    }
-
-    if (_isCompletedFilter != null) {
-      filters.add(_isCompletedFilter!
-          ? 'tamamlanan etkinlikler'
-          : 'bekleyen etkinlikler');
-    }
-
-    if (_dateFilter != null) {
-      switch (_dateFilter) {
-        case 'today':
-          filters.add('bugünkü etkinlikler');
-          break;
-        case 'week':
-          filters.add('bu haftaki etkinlikler');
-          break;
-        case 'month':
-          filters.add('bu aydaki etkinlikler');
-          break;
-      }
-    }
-
-    if (filters.isEmpty) {
-      return 'Henüz etkinlik eklenmemiş';
-    }
-
-    if (filters.length == 1) {
-      return '${filters[0]} için etkinlik bulunamadı';
-    }
-
-    final lastFilter = filters.removeLast();
-    return '${filters.join(", ")} ve $lastFilter için etkinlik bulunamadı';
+  void _showUndoSnackBar() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Etkinlik silindi'),
+        action: SnackBarAction(
+          label: 'Geri Al',
+          onPressed: () {
+            if (_lastDeletedEvent != null && _lastDeletedEventIndex != null) {
+              ref.read(eventProvider.notifier).addEvent(_lastDeletedEvent!);
+              _updateEventsByDay();
+              _lastDeletedEvent = null;
+              _lastDeletedEventIndex = null;
+            }
+          },
+        ),
+      ),
+    );
   }
 
   Widget _buildFAB() {
-    return AnimatedRotation(
-      duration: const Duration(milliseconds: 300),
-      turns: _fabAnimationController.value,
-      child: FloatingActionButton.extended(
-        onPressed: _addEvent,
-        backgroundColor: Colors.white,
-        icon: const Icon(
-          Icons.add_rounded,
-          color: AppColors.primary,
-          size: 32,
-        ),
-        label: const Text(
-          'Etkinlik Ekle',
-          style: TextStyle(
-            color: AppColors.primary,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
+    return FloatingActionButton(
+      onPressed: _addEvent,
+      backgroundColor: AppColors.accent,
+      child: const Icon(Icons.add),
     );
   }
 }
