@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
-import 'package:uuid/uuid.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../domain/models/event.dart';
+import '../../domain/models/event_model.dart';
 
 // Form validasyonları için sabitler
 const int _titleMaxLength = 50;
@@ -55,7 +54,7 @@ class EventFormValidator {
 }
 
 class EventFormScreen extends StatefulWidget {
-  final Event? event;
+  final Event? event; // Düzenleme modu için event parametresi
 
   const EventFormScreen({
     super.key,
@@ -113,15 +112,18 @@ class _EventFormScreenState extends State<EventFormScreen> {
   void initState() {
     super.initState();
     if (_isEditMode) {
+      // Düzenleme modunda form alanlarını doldur
       _titleController.text = widget.event!.title;
-      _descriptionController.text = widget.event!.description ?? '';
+      _descriptionController.text = widget.event!.description;
       _locationController.text = widget.event!.location ?? '';
-      _notesController.text = widget.event!.notes.join('\n');
+      _notesController.text = widget.event!.notes ?? '';
       _selectedDate = widget.event!.date;
-      _selectedTime = widget.event!.time != null
-          ? TimeOfDay.fromDateTime(widget.event!.time!)
-          : TimeOfDay.now();
+      _selectedTime = widget.event!.time;
       _selectedCategory = widget.event!.category;
+    } else {
+      // Ekleme modunda varsayılan değerler
+      _selectedDate = DateTime.now();
+      _selectedTime = TimeOfDay.now();
     }
   }
 
@@ -756,45 +758,49 @@ class _EventFormScreenState extends State<EventFormScreen> {
     );
   }
 
-  void _saveEvent() {
+  Future<void> _submitForm() async {
     if (!_validateForm()) return;
 
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+    });
 
     try {
       final event = Event(
-        id: _isEditMode ? widget.event!.id : const Uuid().v4(),
-        title: _titleController.text,
-        description: _descriptionController.text.isEmpty
-            ? null
-            : _descriptionController.text,
+        id: _isEditMode
+            ? widget.event!.id
+            : DateTime.now().millisecondsSinceEpoch.toString(),
+        title: _titleController.text.trim(),
+        description: _descriptionController.text.trim(),
         date: _selectedDate,
-        time: DateTime(
-          _selectedDate.year,
-          _selectedDate.month,
-          _selectedDate.day,
-          _selectedTime.hour,
-          _selectedTime.minute,
-        ),
+        time: _selectedTime,
         category: _selectedCategory,
-        location:
-            _locationController.text.isEmpty ? null : _locationController.text,
-        notes: _notesController.text.isEmpty
-            ? []
-            : _notesController.text.split('\n'),
+        location: _locationController.text.trim(),
+        notes: _notesController.text.trim(),
         isCompleted: _isEditMode ? widget.event!.isCompleted : false,
       );
 
-      Navigator.pop(context, event);
+      await Future.delayed(const Duration(seconds: 1));
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (mounted) {
+        Navigator.of(context).pop(event);
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Bir hata oluştu. Lütfen tekrar deneyin.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } finally {
-      setState(() => _isLoading = false);
+      setState(() {
+        _isLoading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Bir hata oluştu. Lütfen tekrar deneyin.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -812,7 +818,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: _isLoading ? null : _saveEvent,
+            onPressed: _isLoading ? null : _submitForm,
             child: Text(
               _isEditMode ? 'Güncelle' : 'Kaydet',
               style: const TextStyle(
@@ -828,19 +834,29 @@ class _EventFormScreenState extends State<EventFormScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16.0),
           children: [
-            _buildTextField(
-              controller: _titleController,
-              label: 'Başlık',
-              prefixIcon: Icons.title,
-              errorText: _titleError,
-              validator: EventFormValidator.validateTitle,
-            ),
-            const SizedBox(height: 16),
-            _buildTextField(
-              controller: _descriptionController,
-              label: 'Açıklama',
-              maxLines: 3,
-              validator: EventFormValidator.validateDescription,
+            Hero(
+              tag: _isEditMode ? 'event_${widget.event!.id}' : 'addEventHero',
+              child: Material(
+                color: Colors.transparent,
+                child: Column(
+                  children: [
+                    _buildTextField(
+                      controller: _titleController,
+                      label: 'Başlık',
+                      prefixIcon: Icons.title,
+                      errorText: _titleError,
+                      validator: EventFormValidator.validateTitle,
+                    ),
+                    const SizedBox(height: 16),
+                    _buildTextField(
+                      controller: _descriptionController,
+                      label: 'Açıklama',
+                      maxLines: 3,
+                      validator: EventFormValidator.validateDescription,
+                    ),
+                  ],
+                ),
+              ),
             ),
             const SizedBox(height: 16),
             _buildDateField(),

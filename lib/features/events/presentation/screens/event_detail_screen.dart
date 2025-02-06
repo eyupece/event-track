@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../domain/models/event.dart';
+import '../../domain/models/event_model.dart';
 import 'event_form_screen.dart';
 
 class EventDetailScreen extends StatefulWidget {
@@ -31,7 +31,15 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     });
 
     // Yeni event objesi oluştur
-    final updatedEvent = widget.event.copyWith(
+    final updatedEvent = Event(
+      id: widget.event.id,
+      title: widget.event.title,
+      description: widget.event.description,
+      date: widget.event.date,
+      time: widget.event.time,
+      category: widget.event.category,
+      location: widget.event.location,
+      notes: widget.event.notes,
       isCompleted: _isCompleted,
     );
 
@@ -62,6 +70,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
           ),
           TextButton(
             onPressed: () {
+              // Repository üzerinden silme işlemi yapılacak ve kullanıcıya bildirim gösterilecek
               Navigator.pop(context); // Dialog'u kapat
               Navigator.pop(context); // Detay sayfasından çık
             },
@@ -78,7 +87,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   void _editEvent() async {
     if (!mounted) return;
 
-    final result = await Navigator.push(
+    final result = await Navigator.push<Event>(
       context,
       MaterialPageRoute(
         builder: (context) => EventFormScreen(event: widget.event),
@@ -150,15 +159,13 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                   DateFormat('dd MMMM yyyy', 'tr_TR').format(widget.event.date),
             ),
             const SizedBox(height: 16),
-            if (widget.event.time != null)
-              _buildInfoCard(
-                icon: Icons.access_time,
-                color: Colors.purple,
-                title: 'Saat',
-                value:
-                    TimeOfDay.fromDateTime(widget.event.time!).format(context),
-              ),
-            if (widget.event.location != null) ...[
+            _buildInfoCard(
+              icon: Icons.access_time,
+              color: Colors.purple,
+              title: 'Saat',
+              value: widget.event.time.format(context),
+            ),
+            if (widget.event.location?.isNotEmpty == true) ...[
               const SizedBox(height: 16),
               _buildInfoCard(
                 icon: Icons.location_on_outlined,
@@ -167,8 +174,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                 value: widget.event.location!,
               ),
             ],
-            if (widget.event.description != null &&
-                widget.event.description!.isNotEmpty) ...[
+            if (widget.event.description.isNotEmpty) ...[
               const SizedBox(height: 24),
               const Text(
                 'Açıklama',
@@ -180,14 +186,14 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                widget.event.description!,
+                widget.event.description,
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 16,
                 ),
               ),
             ],
-            if (widget.event.notes.isNotEmpty) ...[
+            if (widget.event.notes?.isNotEmpty == true) ...[
               const SizedBox(height: 24),
               const Text(
                 'Notlar',
@@ -198,20 +204,12 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: widget.event.notes
-                    .map((note) => Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: Text(
-                            note,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ))
-                    .toList(),
+              Text(
+                widget.event.notes!,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                ),
               ),
             ],
             const SizedBox(height: 32),
@@ -263,19 +261,33 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                       ),
                     ),
                     const SizedBox(width: 16),
+                    // Metin
                     Expanded(
-                      child: Text(
-                        _isCompleted ? 'Tamamlandı' : 'Tamamlanmadı',
-                        style: TextStyle(
-                          color: _isCompleted ? Colors.green : Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Tamamlandı',
+                            style: TextStyle(
+                              color: _isCompleted ? Colors.green : Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _isCompleted
+                                ? 'Bu etkinlik tamamlandı'
+                                : 'Bu etkinlik henüz tamamlanmadı',
+                            style: TextStyle(
+                              color: _isCompleted
+                                  ? Colors.green.withAlpha(70)
+                                  : Colors.white70,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    Icon(
-                      Icons.check_circle_outline,
-                      color: _isCompleted ? Colors.green : Colors.white38,
                     ),
                   ],
                 ),
@@ -297,21 +309,17 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white.withAlpha(25),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withAlpha(38),
-              shape: BoxShape.circle,
+              color: color.withAlpha(51),
+              borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(
-              icon,
-              color: color,
-              size: 24,
-            ),
+            child: Icon(icon, color: color),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -343,37 +351,41 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   }
 
   Map<String, dynamic> _getCategoryInfo(String category) {
-    switch (category) {
-      case 'Konser':
-        return {
-          'icon': Icons.music_note,
-          'color': const Color(0xFFFF6B6B),
-        };
-      case 'Teknoloji':
-        return {
-          'icon': Icons.computer,
-          'color': const Color(0xFFFFB84D),
-        };
-      case 'Sinema':
-        return {
-          'icon': Icons.movie,
-          'color': const Color(0xFF4ECDC4),
-        };
-      case 'Tiyatro':
-        return {
-          'icon': Icons.theater_comedy,
-          'color': const Color(0xFF9B59B6),
-        };
-      case 'Spor':
-        return {
-          'icon': Icons.sports_soccer,
-          'color': const Color(0xFF2ECC71),
-        };
-      default:
-        return {
-          'icon': Icons.event,
-          'color': Colors.grey,
-        };
-    }
+    final categories = [
+      {
+        'name': 'Konser',
+        'icon': Icons.music_note,
+        'color': const Color(0xFFFF6B6B),
+      },
+      {
+        'name': 'Teknoloji',
+        'icon': Icons.computer,
+        'color': const Color(0xFFFFB84D),
+      },
+      {
+        'name': 'Sinema',
+        'icon': Icons.movie,
+        'color': const Color(0xFF4ECDC4),
+      },
+      {
+        'name': 'Tiyatro',
+        'icon': Icons.theater_comedy,
+        'color': const Color(0xFF9B59B6),
+      },
+      {
+        'name': 'Spor',
+        'icon': Icons.sports_soccer,
+        'color': const Color(0xFF2ECC71),
+      },
+    ];
+
+    return categories.firstWhere(
+      (c) => c['name'] == category,
+      orElse: () => {
+        'name': 'Diğer',
+        'icon': Icons.category_outlined,
+        'color': Colors.grey,
+      },
+    );
   }
 }

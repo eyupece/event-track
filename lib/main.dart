@@ -1,16 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'features/events/presentation/screens/home_screen.dart';
 import 'core/theme/app_colors.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 void main() {
-  initializeDateFormatting('tr_TR', null).then((_) => runApp(
-        const ProviderScope(
-          child: MyApp(),
-        ),
-      ));
+  initializeDateFormatting('tr_TR', null).then((_) => runApp(const MyApp()));
 }
 
 class MyApp extends StatelessWidget {
